@@ -1,4 +1,5 @@
 import { getCarbonServiceRole } from "@carbon/auth/client.server";
+import type { Json } from "@carbon/database";
 import { GEOMETRY_SERVICE_API_KEY, GEOMETRY_SERVICE_URL } from "@carbon/env";
 import { inngest } from "../../client";
 
@@ -161,7 +162,7 @@ export const assemblyConvertFunction = inngest.createFunction(
         .from("assemblyPlanJob")
         .update({
           status: "Success",
-          stats: result.stats ?? null,
+          stats: (result.stats ?? null) as Json,
           updatedAt: new Date().toISOString()
         })
         .eq("id", job.id);

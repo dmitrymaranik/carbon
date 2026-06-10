@@ -12,6 +12,7 @@ import {
   getJobMakeMethod,
   getJobMaterialsByOperationId,
   getJobMethodBomIdMap,
+  getJobOperationAssembly,
   getJobOperationById,
   getJobOperationProcedure,
   getKanbanByJobId,
@@ -77,7 +78,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     jobMakeMethod,
     kanban,
     bomIdMap,
-    companySettings
+    companySettings,
+    assembly
   ] = await Promise.all([
     getThumbnailPathByItemId(serviceRole, operation.data?.[0].itemId),
     getTrackedEntitiesByMakeMethodId(
@@ -87,7 +89,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     getJobMakeMethod(serviceRole, operation.data?.[0].jobMakeMethodId),
     getKanbanByJobId(serviceRole, job.data.id),
     getJobMethodBomIdMap(serviceRole, job.data.id!),
-    getCompanySettings(serviceRole, companyId)
+    getCompanySettings(serviceRole, companyId),
+    getJobOperationAssembly(serviceRole, operationId)
   ]);
 
   const inventoryShelfLife = (companySettings.data?.inventoryShelfLife ??
@@ -115,6 +118,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   return {
+    assembly,
     bomIdMap: Object.fromEntries(bomIdMap),
     events: events.data ?? [],
     quantities: (quantities.data ?? []).reduce(
@@ -170,6 +174,7 @@ export default function OperationRoute() {
   if (!operationId) throw new Error("Operation ID is required");
 
   const {
+    assembly,
     events,
     expiredEntityPolicy,
     files,
@@ -188,6 +193,7 @@ export default function OperationRoute() {
   return (
     <JobOperation
       key={`job-operation-${operationId}`}
+      assembly={assembly}
       events={events}
       expiredEntityPolicy={expiredEntityPolicy}
       files={files}

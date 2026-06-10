@@ -15,6 +15,7 @@
     "@carbon/react": "workspace:*",
     "@carbon/stripe": "workspace:*",
     "@carbon/utils": "workspace:*",
+    "@carbon/viewer": "workspace:*",
     "@dagrejs/dagre": "^1.1.4",
     "@xyflow/react": "12.10.2",
     "@dnd-kit/core": "catalog:",

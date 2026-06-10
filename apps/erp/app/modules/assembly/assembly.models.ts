@@ -97,7 +97,7 @@ export const assemblyInstructionStepValidator = z.object({
   assemblyInstructionId: z.string().min(1),
   title: zfd.text(z.string().optional()),
   instructionText: zfd.text(z.string().optional()),
-  partNodeIds: z.array(z.string()).optional(),
+  partNodeIds: jsonField(z.array(z.string()).optional()),
   motion: jsonField(motionSchema.optional()),
   camera: jsonField(cameraSchema.nullable().optional()),
   fastener: jsonField(fastenerSchema.nullable().optional()),

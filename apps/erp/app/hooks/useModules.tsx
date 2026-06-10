@@ -1,6 +1,7 @@
 import { useRouteData } from "@carbon/react";
 import { useLingui } from "@lingui/react/macro";
 import {
+  LuBlocks,
   LuBox,
   LuCrown,
   LuFactory,
@@ -51,6 +52,13 @@ function useModuleDefinitions(): ModuleDefinition[] {
       name: t`Accounting`,
       to: path.to.chartOfAccounts,
       icon: LuLandmark
+    },
+    {
+      key: "assembly",
+      permission: "assembly",
+      name: t`Assembly`,
+      to: path.to.assemblyInstructions,
+      icon: LuBlocks
     },
     {
       key: "documents",

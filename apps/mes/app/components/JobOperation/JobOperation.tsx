@@ -116,6 +116,8 @@ import type {
 import { useItems } from "~/stores";
 import { path } from "~/utils/path";
 import ItemThumbnail from "../ItemThumbnail";
+import type { AssemblyInstructionData } from "./components/Assembly";
+import { AssemblyInstructions } from "./components/Assembly";
 import { OperationChat } from "./components/Chat";
 import {
   Controls,
@@ -141,6 +143,7 @@ import { useFiles } from "./hooks/useFiles";
 import { useOperation } from "./hooks/useOperation";
 
 type JobOperationProps = {
+  assembly: AssemblyInstructionData | null;
   events: ProductionEvent[];
   expiredEntityPolicy?: "Warn" | "Block" | "BlockWithOverride";
   files: Promise<StorageItem[]>;
@@ -179,6 +182,7 @@ type JobOperationProps = {
 };
 
 export const JobOperation = ({
+  assembly,
   events,
   expiredEntityPolicy = "Block",
   files,
@@ -471,6 +475,11 @@ export const JobOperation = ({
                 >
                   <Trans>Model</Trans>
                 </TabsTrigger>
+                {assembly && (
+                  <TabsTrigger value="assembly">
+                    <Trans>Assembly</Trans>
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="procedure">
                   <Trans>Procedure</Trans>
                 </TabsTrigger>
@@ -1703,6 +1712,17 @@ export const JobOperation = ({
             />
           </div>
         </TabsContent>
+        {assembly && (
+          <TabsContent value="assembly">
+            <div className="w-full h-[calc(100dvh-var(--header-height)*2)] p-0">
+              <AssemblyInstructions
+                key={`assembly-${operation.id}`}
+                assembly={assembly}
+                mode={mode}
+              />
+            </div>
+          </TabsContent>
+        )}
         <TabsContent value="procedure" className="flex flex-grow">
           <div className="flex h-[calc(100dvh-var(--header-height)*2-var(--controls-height)-2rem)] w-full">
             <Suspense key={`procedure-${operationId}`}>

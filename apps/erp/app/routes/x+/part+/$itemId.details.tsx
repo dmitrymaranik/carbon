@@ -15,6 +15,7 @@ import type {
 import { Await, redirect, useLoaderData, useParams } from "react-router";
 import { CadModel, DeferredFiles } from "~/components";
 import { usePermissions, useRouteData } from "~/hooks";
+import CreateAssemblyInstruction from "~/modules/assembly/ui/Assembly/CreateAssemblyInstruction";
 import type { ItemFile, MakeMethod, PartSummary } from "~/modules/items";
 import {
   getConfigurationParameters,
@@ -57,13 +58,26 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const requestedMethodId = url.searchParams.get("methodId");
 
-  const [makeMethods] = await Promise.all([
-    getMakeMethods(client, itemId, companyId)
+  const [makeMethods, itemModel] = await Promise.all([
+    getMakeMethods(client, itemId, companyId),
+    client
+      .from("item")
+      .select("modelUploadId, modelUpload(id, name, processingStatus)")
+      .eq("id", itemId)
+      .single()
     // client.storage
     //   .from("private")
     //   .list(`${companyId}/default-attachments/item/${itemId}`)
   ]);
   // const defaultAttachments = defaultAttachmentsResult.data ?? [];
+
+  const assemblyModel =
+    itemModel.data?.modelUpload?.processingStatus === "Success"
+      ? {
+          id: itemModel.data.modelUpload.id,
+          name: itemModel.data.modelUpload.name
+        }
+      : null;
 
   const makeMethod = requestedMethodId
     ? (makeMethods.data?.find((m) => m.id === requestedMethodId) ??
@@ -73,12 +87,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       makeMethods.data?.[0]);
 
   if (!makeMethod) {
-    return { methodData: null, tags: [] };
+    return { methodData: null, tags: [], assemblyModel };
   }
 
   const fullMethod = await getMakeMethodById(client, makeMethod.id, companyId);
   if (fullMethod.error || !fullMethod.data) {
-    return { methodData: null, tags: [] };
+    return { methodData: null, tags: [], assemblyModel };
   }
 
   const [methodMaterials, methodOperations, tags, partManufacturing] =
@@ -128,7 +142,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       partManufacturing: partManufacturing.data,
       ...configData
     },
-    tags: tags.data ?? []
+    tags: tags.data ?? [],
+    assemblyModel
   };
 }
 
@@ -219,7 +234,7 @@ export default function PartDetailsRoute() {
   if (!itemId) throw new Error("Could not find itemId");
 
   const permissions = usePermissions();
-  const { methodData, tags } = useLoaderData<typeof loader>();
+  const { methodData, tags, assemblyModel } = useLoaderData<typeof loader>();
 
   const partData = useRouteData<{
     partSummary: PartSummary;
@@ -347,6 +362,15 @@ export default function PartDetailsRoute() {
             modelPath={partData?.partSummary?.modelPath ?? null}
             title={t`CAD Model`}
           />
+          {assemblyModel && permissions.can("create", "assembly") && (
+            <CreateAssemblyInstruction
+              itemId={itemId}
+              modelUploadId={assemblyModel.id}
+              name={
+                partData.partSummary?.name ?? assemblyModel.name ?? "Assembly"
+              }
+            />
+          )}
           <ItemRiskRegister itemId={itemId} />
         </>
       )}

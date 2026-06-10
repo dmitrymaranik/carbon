@@ -560,6 +560,45 @@ export async function getJobOperationById(
   });
 }
 
+export async function getJobOperationAssembly(
+  client: SupabaseClient<Database>,
+  operationId: string
+) {
+  const operation = await client
+    .from("jobOperation")
+    .select("assemblyInstructionId")
+    .eq("id", operationId)
+    .single();
+
+  const assemblyInstructionId = operation.data?.assemblyInstructionId;
+  if (!assemblyInstructionId) return null;
+
+  const [instruction, steps] = await Promise.all([
+    client
+      .from("assemblyInstruction")
+      .select("id, name, modelUpload(glbPath, graphPath)")
+      .eq("id", assemblyInstructionId)
+      .single(),
+    client
+      .from("assemblyInstructionStep")
+      .select(
+        "id, title, instructionText, partNodeIds, motion, camera, fastener"
+      )
+      .eq("assemblyInstructionId", assemblyInstructionId)
+      .order("sortOrder", { ascending: true })
+  ]);
+
+  const modelUpload = instruction.data?.modelUpload;
+  if (!modelUpload?.glbPath || !modelUpload?.graphPath) return null;
+
+  return {
+    name: instruction.data?.name ?? null,
+    glbPath: modelUpload.glbPath,
+    graphPath: modelUpload.graphPath,
+    steps: steps.data ?? []
+  };
+}
+
 export async function getJobOperationsByWorkCenter(
   client: SupabaseClient<Database>,
   { locationId, workCenterId }: { locationId: string; workCenterId: string }
