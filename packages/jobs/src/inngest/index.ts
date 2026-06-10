@@ -39,6 +39,7 @@ import {
   weeklyFunction
 } from "./functions/scheduled";
 import {
+  assemblyConvertFunction,
   modelThumbnailFunction,
   onboardFunction,
   postTransactionFunction,
@@ -63,6 +64,7 @@ export const functions = [
   workflowFunction,
   embeddingFunction,
   // Tasks
+  assemblyConvertFunction,
   modelThumbnailFunction,
   updatePermissionsFunction,
   recalculateFunction,

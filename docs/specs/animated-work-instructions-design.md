@@ -161,12 +161,12 @@ assemblyInstructionFeedback   -- Phase 3: operator notes per step from MES
 
 Storage layout (`private` bucket):
 ```
-models/{companyId}/{modelUploadId}/source.step          (existing upload)
-models/{companyId}/{modelUploadId}/{runId}/model.glb     (meshopt-compressed)
-models/{companyId}/{modelUploadId}/{runId}/graph.json    (tree, transforms, bboxes,
+{companyId}/models/{modelUploadId}.step                  (existing upload convention)
+{companyId}/models/{modelUploadId}/{runId}/model.glb     (meshopt-compressed)
+{companyId}/models/{modelUploadId}/{runId}/graph.json    (tree, transforms, bboxes,
                                                           contacts, fastener classes,
                                                           part hashes)
-models/{companyId}/{modelUploadId}/{runId}/plan.json     (raw planner output)
+{companyId}/models/{modelUploadId}/{runId}/plan.json     (raw planner output)
 ```
 
 ## Architecture

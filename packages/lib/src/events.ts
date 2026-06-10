@@ -56,6 +56,15 @@ export type Events = {
     };
   };
 
+  // Assembly model conversion (CAD → GLB + assembly graph)
+  "carbon/assembly-convert": {
+    data: {
+      modelUploadId: string;
+      companyId: string;
+      userId: string;
+    };
+  };
+
   // Model thumbnail generation
   "carbon/model-thumbnail": {
     data: {

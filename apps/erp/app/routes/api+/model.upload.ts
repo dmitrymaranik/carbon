@@ -76,6 +76,14 @@ export async function action({ request }: ActionFunctionArgs) {
     modelId
   });
 
+  if ([".step", ".stp"].some((ext) => name.toLowerCase().endsWith(ext))) {
+    await trigger("assembly-convert", {
+      companyId,
+      modelUploadId: modelId,
+      userId
+    });
+  }
+
   return {
     success: true
   };
