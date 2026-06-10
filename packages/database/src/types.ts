@@ -1891,6 +1891,275 @@ export type Database = {
           },
         ]
       }
+      assemblyInstruction: {
+        Row: {
+          assemblyPlanJobId: string | null
+          companyId: string
+          createdAt: string
+          createdBy: string
+          customFields: Json | null
+          id: string
+          itemId: string | null
+          modelUploadId: string
+          name: string
+          publishedAt: string | null
+          settings: Json | null
+          status: Database["public"]["Enums"]["assemblyInstructionStatus"]
+          tags: string[] | null
+          updatedAt: string | null
+          updatedBy: string | null
+          version: number
+        }
+        Insert: {
+          assemblyPlanJobId?: string | null
+          companyId: string
+          createdAt?: string
+          createdBy: string
+          customFields?: Json | null
+          id?: string
+          itemId?: string | null
+          modelUploadId: string
+          name: string
+          publishedAt?: string | null
+          settings?: Json | null
+          status?: Database["public"]["Enums"]["assemblyInstructionStatus"]
+          tags?: string[] | null
+          updatedAt?: string | null
+          updatedBy?: string | null
+          version?: number
+        }
+        Update: {
+          assemblyPlanJobId?: string | null
+          companyId?: string
+          createdAt?: string
+          createdBy?: string
+          customFields?: Json | null
+          id?: string
+          itemId?: string | null
+          modelUploadId?: string
+          name?: string
+          publishedAt?: string | null
+          settings?: Json | null
+          status?: Database["public"]["Enums"]["assemblyInstructionStatus"]
+          tags?: string[] | null
+          updatedAt?: string | null
+          updatedBy?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assemblyInstruction_assemblyPlanJobId_fkey"
+            columns: ["assemblyPlanJobId"]
+            isOneToOne: false
+            referencedRelation: "assemblyPlanJob"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstruction_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstruction_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstruction_itemId_fkey"
+            columns: ["itemId"]
+            isOneToOne: false
+            referencedRelation: "item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstruction_modelUploadId_fkey"
+            columns: ["modelUploadId"]
+            isOneToOne: false
+            referencedRelation: "modelUpload"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstruction_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assemblyInstructionStep: {
+        Row: {
+          assemblyInstructionId: string
+          camera: Json | null
+          companyId: string
+          createdAt: string
+          createdBy: string
+          durationSeconds: number | null
+          explode: Json | null
+          fastener: Json | null
+          id: string
+          instructionText: string | null
+          motion: Json
+          notes: Json | null
+          parentStepId: string | null
+          partNodeIds: string[]
+          planConfidence: string
+          sortOrder: number
+          title: string | null
+          updatedAt: string | null
+          updatedBy: string | null
+          warnings: Json | null
+        }
+        Insert: {
+          assemblyInstructionId: string
+          camera?: Json | null
+          companyId: string
+          createdAt?: string
+          createdBy: string
+          durationSeconds?: number | null
+          explode?: Json | null
+          fastener?: Json | null
+          id?: string
+          instructionText?: string | null
+          motion?: Json
+          notes?: Json | null
+          parentStepId?: string | null
+          partNodeIds?: string[]
+          planConfidence?: string
+          sortOrder?: number
+          title?: string | null
+          updatedAt?: string | null
+          updatedBy?: string | null
+          warnings?: Json | null
+        }
+        Update: {
+          assemblyInstructionId?: string
+          camera?: Json | null
+          companyId?: string
+          createdAt?: string
+          createdBy?: string
+          durationSeconds?: number | null
+          explode?: Json | null
+          fastener?: Json | null
+          id?: string
+          instructionText?: string | null
+          motion?: Json
+          notes?: Json | null
+          parentStepId?: string | null
+          partNodeIds?: string[]
+          planConfidence?: string
+          sortOrder?: number
+          title?: string | null
+          updatedAt?: string | null
+          updatedBy?: string | null
+          warnings?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assemblyInstructionStep_assemblyInstructionId_fkey"
+            columns: ["assemblyInstructionId"]
+            isOneToOne: false
+            referencedRelation: "assemblyInstruction"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStep_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStep_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStep_parentStepId_fkey"
+            columns: ["parentStepId"]
+            isOneToOne: false
+            referencedRelation: "assemblyInstructionStep"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStep_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assemblyPlanJob: {
+        Row: {
+          companyId: string
+          createdAt: string
+          createdBy: string
+          error: string | null
+          id: string
+          kind: string
+          modelUploadId: string
+          planPath: string | null
+          stats: Json | null
+          status: Database["public"]["Enums"]["modelProcessingStatus"]
+          updatedAt: string | null
+        }
+        Insert: {
+          companyId: string
+          createdAt?: string
+          createdBy: string
+          error?: string | null
+          id?: string
+          kind: string
+          modelUploadId: string
+          planPath?: string | null
+          stats?: Json | null
+          status?: Database["public"]["Enums"]["modelProcessingStatus"]
+          updatedAt?: string | null
+        }
+        Update: {
+          companyId?: string
+          createdAt?: string
+          createdBy?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          modelUploadId?: string
+          planPath?: string | null
+          stats?: Json | null
+          status?: Database["public"]["Enums"]["modelProcessingStatus"]
+          updatedAt?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assemblyPlanJob_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyPlanJob_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyPlanJob_modelUploadId_fkey"
+            columns: ["modelUploadId"]
+            isOneToOne: false
+            referencedRelation: "modelUpload"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attributeDataType: {
         Row: {
           id: number
@@ -15582,6 +15851,7 @@ export type Database = {
       }
       jobOperation: {
         Row: {
+          assemblyInstructionId: string | null
           assignee: string | null
           companyId: string
           conflictReason: string | null
@@ -15629,6 +15899,7 @@ export type Database = {
           workInstruction: Json
         }
         Insert: {
+          assemblyInstructionId?: string | null
           assignee?: string | null
           companyId: string
           conflictReason?: string | null
@@ -15676,6 +15947,7 @@ export type Database = {
           workInstruction?: Json
         }
         Update: {
+          assemblyInstructionId?: string | null
           assignee?: string | null
           companyId?: string
           conflictReason?: string | null
@@ -15723,6 +15995,13 @@ export type Database = {
           workInstruction?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "jobOperation_assemblyInstructionId_fkey"
+            columns: ["assemblyInstructionId"]
+            isOneToOne: false
+            referencedRelation: "assemblyInstruction"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jobOperation_assignee_fkey"
             columns: ["assignee"]
@@ -20896,6 +21175,7 @@ export type Database = {
       }
       methodOperation: {
         Row: {
+          assemblyInstructionId: string | null
           companyId: string
           createdAt: string
           createdBy: string
@@ -20925,6 +21205,7 @@ export type Database = {
           workInstruction: Json
         }
         Insert: {
+          assemblyInstructionId?: string | null
           companyId: string
           createdAt?: string
           createdBy: string
@@ -20954,6 +21235,7 @@ export type Database = {
           workInstruction?: Json
         }
         Update: {
+          assemblyInstructionId?: string | null
           companyId?: string
           createdAt?: string
           createdBy?: string
@@ -20983,6 +21265,13 @@ export type Database = {
           workInstruction?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "methodOperation_assemblyInstructionId_fkey"
+            columns: ["assemblyInstructionId"]
+            isOneToOne: false
+            referencedRelation: "assemblyInstruction"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "methodOperation_companyId_fkey"
             columns: ["companyId"]
@@ -21623,9 +21912,15 @@ export type Database = {
           companyId: string
           createdAt: string | null
           createdBy: string
+          glbPath: string | null
+          graphPath: string | null
           id: string
           modelPath: string
           name: string | null
+          partCount: number | null
+          processedAt: string | null
+          processingError: string | null
+          processingStatus: Database["public"]["Enums"]["modelProcessingStatus"]
           size: number | null
           thumbnailPath: string | null
           updatedAt: string | null
@@ -21636,9 +21931,15 @@ export type Database = {
           companyId: string
           createdAt?: string | null
           createdBy: string
+          glbPath?: string | null
+          graphPath?: string | null
           id?: string
           modelPath: string
           name?: string | null
+          partCount?: number | null
+          processedAt?: string | null
+          processingError?: string | null
+          processingStatus?: Database["public"]["Enums"]["modelProcessingStatus"]
           size?: number | null
           thumbnailPath?: string | null
           updatedAt?: string | null
@@ -21649,9 +21950,15 @@ export type Database = {
           companyId?: string
           createdAt?: string | null
           createdBy?: string
+          glbPath?: string | null
+          graphPath?: string | null
           id?: string
           modelPath?: string
           name?: string | null
+          partCount?: number | null
+          processedAt?: string | null
+          processingError?: string | null
+          processingStatus?: Database["public"]["Enums"]["modelProcessingStatus"]
           size?: number | null
           thumbnailPath?: string | null
           updatedAt?: string | null
@@ -51689,6 +51996,7 @@ export type Database = {
       }
       jobOperationsWithDependencies: {
         Row: {
+          assemblyInstructionId: string | null
           assignee: string | null
           companyId: string | null
           conflictReason: string | null
@@ -51739,6 +52047,7 @@ export type Database = {
           workInstruction: Json | null
         }
         Insert: {
+          assemblyInstructionId?: string | null
           assignee?: string | null
           companyId?: string | null
           conflictReason?: string | null
@@ -51789,6 +52098,7 @@ export type Database = {
           workInstruction?: Json | null
         }
         Update: {
+          assemblyInstructionId?: string | null
           assignee?: string | null
           companyId?: string | null
           conflictReason?: string | null
@@ -52081,6 +52391,7 @@ export type Database = {
       }
       jobOperationsWithMakeMethods: {
         Row: {
+          assemblyInstructionId: string | null
           assignee: string | null
           companyId: string | null
           conflictReason: string | null
@@ -65336,6 +65647,7 @@ export type Database = {
     }
     Enums: {
       accountingPeriodStatus: "Inactive" | "Active"
+      assemblyInstructionStatus: "Draft" | "Published" | "Archived"
       accountType:
         | "Bank"
         | "Cash"
@@ -65647,6 +65959,12 @@ export type Database = {
       makeMethodStatus: "Draft" | "Active" | "Archived"
       methodOperationOrder: "After Previous" | "With Previous"
       methodType: "Purchase to Order" | "Pull from Inventory" | "Make to Order"
+      modelProcessingStatus:
+        | "Idle"
+        | "Queued"
+        | "Processing"
+        | "Success"
+        | "Failed"
       module:
         | "Accounting"
         | "Documents"
@@ -65663,6 +65981,7 @@ export type Database = {
         | "Settings"
         | "Users"
         | "Quality"
+        | "Assembly"
       month:
         | "January"
         | "February"
@@ -66605,6 +66924,7 @@ export const Constants = {
   public: {
     Enums: {
       accountingPeriodStatus: ["Inactive", "Active"],
+      assemblyInstructionStatus: ["Draft", "Published", "Archived"],
       accountType: [
         "Bank",
         "Cash",
@@ -66945,6 +67265,13 @@ export const Constants = {
       makeMethodStatus: ["Draft", "Active", "Archived"],
       methodOperationOrder: ["After Previous", "With Previous"],
       methodType: ["Purchase to Order", "Pull from Inventory", "Make to Order"],
+      modelProcessingStatus: [
+        "Idle",
+        "Queued",
+        "Processing",
+        "Success",
+        "Failed",
+      ],
       module: [
         "Accounting",
         "Documents",
@@ -66961,6 +67288,7 @@ export const Constants = {
         "Settings",
         "Users",
         "Quality",
+        "Assembly",
       ],
       month: [
         "January",
