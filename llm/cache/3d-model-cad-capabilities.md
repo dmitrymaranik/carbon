@@ -43,9 +43,26 @@ Older cache references to Trigger.dev are stale.
 `apps/mes/app/components/JobOperation/JobOperation.tsx` renders a "Model" tab on
 `/x/operation/:operationId` using ModelViewer when the job/item has a model.
 
-## Related design work
+## Assembly module (animated work instructions) — Phase 0 shipped
 
-Animated work instructions from CAD: research in
-`llm/research/animated-work-instructions.md`, spec in
-`docs/specs/animated-work-instructions-design.md`, plan in
-`llm/tasks/animated-work-instructions-plan.md`.
+- Docs: `llm/research/animated-work-instructions.md`,
+  `docs/specs/animated-work-instructions-design.md` (+ `-contracts.md`, `-plan.md`).
+- `services/geometry/` — Python/FastAPI + OCCT (cadquery-ocp): POST /convert turns a
+  STEP file (signed GET URL) into a meshopt-compressed GLB + graph.json (signed PUTs).
+  Stable nodeIds in glTF node extras. Limits via GEOMETRY_* env vars; bearer auth.
+  CI: `.github/workflows/geometry.yml` (pytest + docker build).
+- `packages/viewer` (@carbon/viewer) — react-three-fiber v8 AssemblyViewer/AssemblyPlayer;
+  runtime keyframes from step motion JSON (linear/L/helix/path/none); React 18 peers.
+- DB: `assemblyPlanJob`, `assemblyInstruction`, `assemblyInstructionStep`;
+  `modelUpload` gained processingStatus/glbPath/graphPath/partCount/processedAt;
+  `jobOperation`/`methodOperation` gained nullable `assemblyInstructionId`;
+  new `Assembly` value in `module` enum + `assembly_*` permissions.
+- Inngest `assembly-convert` (`packages/jobs/src/inngest/functions/tasks/assembly-convert.ts`)
+  auto-triggers from `apps/erp/app/routes/api+/model.upload.ts` for .step/.stp uploads.
+  Env: GEOMETRY_SERVICE_URL / GEOMETRY_SERVICE_API_KEY (packages/env).
+- ERP: `apps/erp/app/modules/assembly/` + routes `x+/assembly+/` (list, new, three-pane
+  editor with step CRUD/reorder/publish); nav entry in `useModules`; create-instruction
+  button on item Model tab. MES: Assembly tab in
+  `apps/mes/app/components/JobOperation/` (read-only playback).
+- Not yet done: planner (Phase 1), deploy config for the geometry container,
+  browser-level e2e verification (needs local db rebuild).
