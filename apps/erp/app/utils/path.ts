@@ -460,6 +460,21 @@ export const path = {
       generatePath(`${x}/items/methods/versions/activate/${id}`),
     activateGauge: (id: string) =>
       generatePath(`${x}/quality/gauges/activate/${id}`),
+    assemblyInstruction: (id: string) => generatePath(`${x}/assembly/${id}`),
+    assemblyInstructions: `${x}/assembly`,
+    assemblyInstructionStatus: (id: string) =>
+      generatePath(`${x}/assembly/${id}/status`),
+    deleteAssemblyInstruction: (id: string) =>
+      generatePath(`${x}/assembly/delete/${id}`),
+    newAssemblyInstruction: `${x}/assembly/new`,
+    newAssemblyInstructionStep: (id: string) =>
+      generatePath(`${x}/assembly/${id}/steps/new`),
+    assemblyInstructionStep: (id: string, stepId: string) =>
+      generatePath(`${x}/assembly/${id}/steps/${stepId}`),
+    deleteAssemblyInstructionStep: (id: string, stepId: string) =>
+      generatePath(`${x}/assembly/${id}/steps/delete/${stepId}`),
+    assemblyInstructionStepOrder: (id: string) =>
+      generatePath(`${x}/assembly/${id}/steps/order`),
     attribute: (id: string) => generatePath(`${x}/people/attribute/${id}`),
     attributes: `${x}/people/attributes`,
     apiIntroduction: `/docs/api/js/intro`,
