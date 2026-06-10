@@ -1,7 +1,12 @@
 from typing import Literal
 
 ErrorCode = Literal[
-    "READ_FAILED", "TESSELLATION_FAILED", "UPLOAD_FAILED", "INVALID_INPUT"
+    "READ_FAILED",
+    "TESSELLATION_FAILED",
+    "UPLOAD_FAILED",
+    "INVALID_INPUT",
+    "LIMIT_EXCEEDED",
+    "BUSY",
 ]
 
 

@@ -13,6 +13,9 @@ export const assemblyConvertFunction = inngest.createFunction(
   {
     id: "assembly-convert",
     retries: 2,
+    // The geometry service is CPU-bound and rejects work beyond its slot
+    // count with 429s; keep per-company fan-out from starving other tenants.
+    concurrency: [{ limit: 4 }, { key: "event.data.companyId", limit: 2 }],
     onFailure: async ({ event }) => {
       const { modelUploadId } = event.data.event.data;
       const client = getCarbonServiceRole();

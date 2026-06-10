@@ -916,6 +916,9 @@ msgstr "Als Unternehmenseigentümer können Sie das Eigentum an einen anderen Mi
 msgid "Ascending"
 msgstr "Aufsteigend"
 
+msgid "Assembly"
+msgstr ""
+
 msgid "Assembly:"
 msgstr "Baugruppe:"
 

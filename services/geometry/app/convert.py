@@ -88,11 +88,21 @@ def convert_step(
     glb_path: Path,
     linear_deflection: float = 0.1,
     angular_deflection: float = 0.5,
+    max_parts: int | None = None,
 ) -> ConversionResult:
     """Convert a STEP file to a GLB (at glb_path) plus a graph.json dict."""
     warnings: list[str] = []
     doc = _read_step(step_path)
     source_unit = _detect_source_unit(step_path)
+
+    if max_parts is not None:
+        instances = _count_leaf_instances(doc)
+        if instances > max_parts:
+            raise ConvertError(
+                "LIMIT_EXCEEDED",
+                f"assembly has {instances} part instances; the limit is {max_parts}",
+                413,
+            )
 
     try:
         root = _build_tree(doc, linear_deflection, angular_deflection, warnings)
@@ -206,6 +216,30 @@ def _label_color(*labels: TDF_Label) -> list[float] | None:
                 rgb = rgba.GetRGB()
                 return [rgb.Red(), rgb.Green(), rgb.Blue(), rgba.Alpha()]
     return None
+
+
+def _count_leaf_instances(doc: TDocStd_Document) -> int:
+    """Count leaf part instances without tessellating anything.
+
+    Used to reject oversized assemblies before the expensive meshing pass.
+    """
+    shape_tool = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
+
+    def count(product_label: TDF_Label) -> int:
+        if not XCAFDoc_ShapeTool.IsAssembly_s(product_label):
+            return 1
+        components = TDF_LabelSequence()
+        XCAFDoc_ShapeTool.GetComponents_s(product_label, components)
+        total = 0
+        for i in range(1, components.Length() + 1):
+            referred = TDF_Label()
+            if XCAFDoc_ShapeTool.GetReferredShape_s(components.Value(i), referred):
+                total += count(referred)
+        return total
+
+    free_shapes = TDF_LabelSequence()
+    shape_tool.GetFreeShapes(free_shapes)
+    return sum(count(free_shapes.Value(i)) for i in range(1, free_shapes.Length() + 1))
 
 
 def _build_tree(

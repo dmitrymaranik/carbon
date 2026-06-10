@@ -916,6 +916,9 @@ msgstr "Как владелец компании, вы можете переда
 msgid "Ascending"
 msgstr "По возрастанию"
 
+msgid "Assembly"
+msgstr ""
+
 msgid "Assembly:"
 msgstr "Сборка:"
 

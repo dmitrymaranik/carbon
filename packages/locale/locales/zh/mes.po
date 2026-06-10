@@ -88,6 +88,9 @@ msgstr "您确定要完成此操作吗？这将结束此操作的所有活跃生
 msgid "Are you sure you want to leave this page?"
 msgstr "您确定要离开此页面吗？"
 
+msgid "Assembly"
+msgstr ""
+
 msgid "Assigned"
 msgstr "已分配"
 
@@ -682,6 +685,9 @@ msgstr "上一个"
 
 msgid "Preventive"
 msgstr "预防性"
+
+msgid "Previous"
+msgstr ""
 
 msgid "Priority"
 msgstr "优先级"

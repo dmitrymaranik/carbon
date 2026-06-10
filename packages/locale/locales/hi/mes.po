@@ -88,6 +88,9 @@ msgstr "क्या आप सुनिश्चित हैं कि आप 
 msgid "Are you sure you want to leave this page?"
 msgstr "क्या आप वाकई इस पृष्ठ को छोड़ना चाहते हैं?"
 
+msgid "Assembly"
+msgstr ""
+
 msgid "Assigned"
 msgstr "निर्दिष्ट"
 
@@ -682,6 +685,9 @@ msgstr "पिछला"
 
 msgid "Preventive"
 msgstr "निवारक"
+
+msgid "Previous"
+msgstr ""
 
 msgid "Priority"
 msgstr "प्राथमिकता"

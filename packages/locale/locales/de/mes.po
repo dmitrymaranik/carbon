@@ -88,6 +88,9 @@ msgstr "Sind Sie sicher, dass Sie diesen Arbeitsgang beenden möchten? Dies been
 msgid "Are you sure you want to leave this page?"
 msgstr "Möchten Sie diese Seite wirklich verlassen?"
 
+msgid "Assembly"
+msgstr ""
+
 msgid "Assigned"
 msgstr "Zugewiesen"
 
@@ -682,6 +685,9 @@ msgstr "Zurück"
 
 msgid "Preventive"
 msgstr "Vorbeugend"
+
+msgid "Previous"
+msgstr ""
 
 msgid "Priority"
 msgstr "Priorität"

@@ -63,10 +63,24 @@ both sides).
 // response 200 (synchronous in Phase 0; Inngest applies its own timeout/retries)
 { "ok": true, "partCount": 42, "unit": "mm", "stats": { "convertMs": 1234, "meshTriangles": 100000 } }
 // response 4xx/5xx
-{ "ok": false, "error": "human-readable message", "code": "READ_FAILED" | "TESSELLATION_FAILED" | "UPLOAD_FAILED" | "INVALID_INPUT" }
+{ "ok": false, "error": "human-readable message", "code": "READ_FAILED" | "TESSELLATION_FAILED" | "UPLOAD_FAILED" | "INVALID_INPUT" | "LIMIT_EXCEEDED" | "BUSY" }
+// status mapping: 400 INVALID_INPUT (incl. URL policy violations), 413
+// LIMIT_EXCEEDED (source size / part count), 422 READ_FAILED, 429 BUSY (no
+// conversion slot free — caller should retry with backoff), 500
+// TESSELLATION_FAILED, 502 UPLOAD_FAILED.
 ```
 
 ### GET /health → `{ "ok": true, "version": "x.y.z" }`
+
+### Operational limits (service env vars)
+
+- `GEOMETRY_MAX_SOURCE_MB` (default 250) — source download cap
+- `GEOMETRY_MAX_PARTS` (default 5000) — leaf instances, checked before meshing
+- `GEOMETRY_MAX_CONCURRENCY` (default 2) — conversion slots per worker; excess → 429 BUSY
+- `GEOMETRY_ALLOWED_URL_HOSTS` (optional, comma-separated) — allowlist for
+  source/output URL hosts (set to the Supabase storage host in production)
+- `GEOMETRY_DEV_MODE=true` — permits http URLs and unauthenticated access when
+  no API key is set (local dev only)
 
 ## 4. Step motion JSON (`assemblyInstructionStep.motion`)
 

@@ -916,6 +916,9 @@ msgstr "En tant que propriétaire de l'entreprise, vous pouvez transférer la pr
 msgid "Ascending"
 msgstr "Croissant"
 
+msgid "Assembly"
+msgstr ""
+
 msgid "Assembly:"
 msgstr "Assemblage :"
 
