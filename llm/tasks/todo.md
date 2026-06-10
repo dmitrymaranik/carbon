@@ -1,37 +1,21 @@
-# Fix ERP CSV export to respect the current saved view
+# Animated Work Instructions — Phase 0 Implementation
 
-## Tasks
+Plan: `llm/tasks/animated-work-instructions-plan.md`
 
-- [x] Update `Download.tsx`: extend props (columnAccessors, columnOrder, columnVisibility),
-      call store hooks in body, derive ordered+visible export columns, build label-keyed
-      rows with id→name substitution. Spawn subtasks to query the cache folder any time I
-      need to learn something about the codebase. NEVER update the cache with plans or
-      information about code that is not yet committed.
-- [x] Update `TableHeader.tsx` line 335: pass the three props through to `<Download />`.
-      Spawn subtasks to query the cache folder any time I need to learn something about the
-      codebase. NEVER update the cache with plans or information about code that is not yet
-      committed.
-- [x] Typecheck. Spawn subtasks to query the cache folder any time I need to learn something
-      about the codebase. NEVER update the cache with plans or information about code that is
-      not yet committed.
-- [ ] Commit and push. Spawn subtasks to query the cache folder any time I need to learn
-      something about the codebase. NEVER update the cache with plans or information about
-      code that is not yet committed.
+- [ ] 0.1 Geometry service skeleton (services/geometry). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] 0.2 STEP → GLB + graph.json conversion. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] 0.3 Meshopt compression pass. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] 0.4 Migration: modelUpload processing columns + assemblyPlanJob. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] 0.5 Inngest convert pipeline. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] 0.6 packages/viewer: AssemblyPlayer. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] 0.7 Migration: assemblyInstruction tables + permissions. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] 0.8 Assembly module: models + service. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] 0.9 ERP routes: instruction editor (manual authoring MVP). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] 0.10 MES playback (read-only). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] 0.11 Phase 0 verification (typecheck/lint/tests; browser verify deferred until user rebuilds db). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+
+Note: per AGENTS.md, never rebuild the database here — db:build verification waits for the user.
 
 ## Review
 
-- `Download.tsx`: added `columnAccessors` / `columnOrder` / `columnVisibility` props;
-  call `useItems/useSuppliers/usePeople/useCustomers` in the body to build id→name
-  Maps (memoized); derive the ordered, visible export columns (column id == accessor
-  key; synthetic columns dropped since they're absent from `columnAccessors`); the
-  click handler builds label-keyed rows so json2csv emits the view's labels in order,
-  substituting names for `itemId`/`supplierId`/`employeeId`/`customerId` with raw-value
-  fallback.
-- `TableHeader.tsx`: passed the three already-available props to `<Download />`. No
-  change to `Table.tsx` or any interface.
-- Types confirmed by inspection (`ListItem` has `id: string; name: string`; `~/stores`
-  import is an established pattern; `json-2-csv@5.5.10` supports `emptyFieldValue`).
-  The full `tsgo` typecheck could NOT be run here — this environment has no installed
-  `node_modules`.
-- Browser verification (custom view in Inventory) still needs to be run against a
-  running dev server, which isn't available in this container.
+(pending)
