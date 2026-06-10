@@ -10,6 +10,7 @@ import { pickApps, pickBorrowSlug } from "../prompts.js";
 import {
   installDeps,
   spawnApps,
+  spawnGeometry,
   spawnStripeListener,
   syncEnvSymlinks
 } from "../services/apps.js";
@@ -162,6 +163,8 @@ export async function up(opts: UpOpts = {}) {
     spawnStripeListener(root);
     log.info("stripe listener spawned (CARBON_EDITION=cloud)");
   }
+
+  spawnGeometry({ root, ports: ctx.ports });
 
   box(
     summaryLines(
