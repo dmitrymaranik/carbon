@@ -5,7 +5,8 @@ export const COMPOSE_SHARED_FILE = "docker-compose.yml";
 /** Apps the CLI knows how to spawn through portless. */
 export const APP_CHOICES = [
   { value: "erp", label: "ERP", hint: "main app" },
-  { value: "mes", label: "MES", hint: "shop floor" }
+  { value: "mes", label: "MES", hint: "shop floor" },
+  { value: "geometry", label: "Geometry", hint: "3D engine" }
 ] as const;
 export type AppId = (typeof APP_CHOICES)[number]["value"];
 

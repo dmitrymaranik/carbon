@@ -164,7 +164,9 @@ export async function up(opts: UpOpts = {}) {
     log.info("stripe listener spawned (CARBON_EDITION=cloud)");
   }
 
-  spawnGeometry({ root, ports: ctx.ports });
+  if (selectedApps.includes("geometry")) {
+    spawnGeometry({ root, ports: ctx.ports });
+  }
 
   box(
     summaryLines(
@@ -477,7 +479,8 @@ async function runAppsThenTeardown(
   ports: PortMap,
   portless: boolean
 ) {
-  await spawnApps({ root, apps: selectedApps, ports, portless });
+  const reactRouterApps = selectedApps.filter((id) => id !== "geometry");
+  await spawnApps({ root, apps: reactRouterApps, ports, portless });
 
   // Apps exit on Ctrl+C; auto-`down` so compose stack isn't orphaned.
   // Swallow further signals so a second Ctrl+C during teardown doesn't
