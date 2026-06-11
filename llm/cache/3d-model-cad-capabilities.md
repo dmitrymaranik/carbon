@@ -58,8 +58,11 @@ value or `assembly_*` permission family.
   CI: `.github/workflows/geometry.yml` (pytest + docker build).
 - `packages/viewer` (@carbon/viewer) — react-three-fiber v8 AssemblyViewer (with drei
   GizmoViewcube) / AssemblyPlayer (ghost/hidden/solid future-parts modes, overlay nav
-  arrows, `onGraphLoaded`, `highlightedNodeIds`); runtime keyframes from step motion
-  JSON (linear/L/helix/path/none); pure utils `graph.ts` (indexAssemblyGraph,
+  arrows, `onGraphLoaded`, `highlightedNodeIds`, `hiddenNodeIds`); steps form one
+  continuous timeline (LoopOnce auto-advance, global-seconds scrubber with step
+  ticks, m:ss elapsed/total display, `stepTimelineSeconds`); AssemblyStep has
+  optional `durationSeconds`; runtime keyframes from step motion JSON
+  (linear/L/helix/path/none); pure utils `graph.ts` (indexAssemblyGraph,
   groupPartNodeIds) and `describe.ts` (describeStep auto-titles) with vitest coverage.
 - DB: `assemblyPlanJob`, `assemblyInstruction`, `assemblyInstructionStep` (status enum
   Todo/Review/Done, groupIds), `assemblyInstructionStepRequirement`
@@ -76,13 +79,21 @@ value or `assembly_*` permission family.
   `x+/production+/assemblies.tsx` (/x/production/assemblies) + `assemblies.new.tsx`,
   mirroring procedures; full-screen editor stays at `x+/assembly+/$id`
   (/x/assembly/:id) with `handle.module: "production"` like `x+/procedure+/`.
-  Editor: Steps|Parts left tabs (BOM tree with click-to-highlight),
-  Details|BOM|Requirements right tabs (tools/notes/standard notes/media),
-  auto-generated step titles, status dots. Nav: "Assemblies" in the Production
+  Editor: Steps|Parts left tabs — step search/filter, status dots, "N steps · est."
+  footer; Parts tab is the BOM tree with click-to-highlight, hide-parts, a Groups
+  section, and a selection toolbar + right-click context menu that creates
+  clusters/kits/combinations/subassemblies (subassembly auto-creates a child
+  instruction via `$id.groups.new`); Details|BOM|Requirements right tabs
+  (tools/notes/standard notes/media, per-step timeline length display);
+  auto-generated step titles; header shows version badge ("Edit N", bumped on
+  publish) + "By you · edited <relative>". Nav: "Assemblies" in the Production
   sidebar group (useProductionSubmodules); create-instruction button on item Model
   tab (gated on production_create). MES: Assembly tab in
-  `apps/mes/app/components/JobOperation/` (read-only playback; production_view RLS).
+  `apps/mes/app/components/JobOperation/` (read-only playback + active step's
+  notes/tools/media via requirements in getJobOperationAssembly; serviceRole read).
+- Test playbook: `llm/test-playbooks/assembly-instructions-editor.md`.
 - Not yet done: planner consumption in the editor (plan.json accessor exists:
-  getLatestAssemblyPlan), continuous timeline, grouping UI (assemblyGroup schema +
-  service exist, no UI), deploy config for the geometry container, browser e2e
-  verification (needs local db rebuild).
+  getLatestAssemblyPlan), share link, PDF export, undo/redo, annotations,
+  kit-aware step animation semantics, deploy config for the geometry container,
+  full CRUD e2e for status/requirements/groups (local db missing migrations from
+  20260610183947 onward — needs user rebuild).
