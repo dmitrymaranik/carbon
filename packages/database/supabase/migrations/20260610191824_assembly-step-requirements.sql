@@ -93,55 +93,55 @@ ALTER TABLE "assemblyStandardNote" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "SELECT" ON "assemblyInstructionStepRequirement"
   FOR SELECT USING (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_view')::text[]
+      get_companies_with_employee_permission('production_view')::text[]
     )
   );
 
 CREATE POLICY "INSERT" ON "assemblyInstructionStepRequirement"
   FOR INSERT WITH CHECK (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_create')::text[]
+      get_companies_with_employee_permission('production_create')::text[]
     )
   );
 
 CREATE POLICY "UPDATE" ON "assemblyInstructionStepRequirement"
   FOR UPDATE USING (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_update')::text[]
+      get_companies_with_employee_permission('production_update')::text[]
     )
   );
 
 CREATE POLICY "DELETE" ON "assemblyInstructionStepRequirement"
   FOR DELETE USING (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_delete')::text[]
+      get_companies_with_employee_permission('production_delete')::text[]
     )
   );
 
 CREATE POLICY "SELECT" ON "assemblyStandardNote"
   FOR SELECT USING (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_view')::text[]
+      get_companies_with_employee_permission('production_view')::text[]
     )
   );
 
 CREATE POLICY "INSERT" ON "assemblyStandardNote"
   FOR INSERT WITH CHECK (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_create')::text[]
+      get_companies_with_employee_permission('production_create')::text[]
     )
   );
 
 CREATE POLICY "UPDATE" ON "assemblyStandardNote"
   FOR UPDATE USING (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_update')::text[]
+      get_companies_with_employee_permission('production_update')::text[]
     )
   );
 
 CREATE POLICY "DELETE" ON "assemblyStandardNote"
   FOR DELETE USING (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_delete')::text[]
+      get_companies_with_employee_permission('production_delete')::text[]
     )
   );

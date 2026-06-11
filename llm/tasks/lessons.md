@@ -61,3 +61,17 @@ Patterns learned from corrections. Review at the start of each session.
 ## Bash fallbacks when tools are missing
 
 - `pandoc` is not on the user's machine. For `.docx` extraction, use the `anthropic-skills:docx` skill's `unpack.py` (needs `defusedxml`; install via `mise x python@3.14.2 -- pip install defusedxml`) or an equivalent Python/JS extraction, rather than assuming pandoc is available.
+
+## Features live inside existing permission modules
+
+- Don't create a new module enum value / permission family for a feature
+  that belongs to an existing domain. Assembly instructions were first built
+  as a standalone `Assembly` module with `assembly_*` permissions; the user
+  corrected this — they are part of **production**, governed by
+  `production_<view|create|update|delete>`, with a sub-link in the
+  Production sidebar group (like Procedures) and a full-screen editor in
+  its own route tree (`x+/assembly+/$id`, `handle.module: "production"`,
+  mirroring `x+/procedure+/`).
+- Pattern: list route under `x+/<module>+/<plural>.tsx`, full-screen editor
+  in a sibling `x+/<singular>+/` tree whose `_layout.tsx` declares the
+  parent module. Module folder = permission module = nav module.

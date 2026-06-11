@@ -20,22 +20,22 @@ import {
   getAssemblyStandardNotes,
   toViewerStep,
   upsertAssemblyInstruction
-} from "~/modules/assembly";
-import AssemblyInstructionExplorer from "~/modules/assembly/ui/Assembly/AssemblyInstructionExplorer";
-import AssemblyInstructionHeader from "~/modules/assembly/ui/Assembly/AssemblyInstructionHeader";
-import AssemblyInstructionProperties from "~/modules/assembly/ui/Assembly/AssemblyInstructionProperties";
+} from "~/modules/production";
+import AssemblyInstructionExplorer from "~/modules/production/ui/Assemblies/AssemblyInstructionExplorer";
+import AssemblyInstructionHeader from "~/modules/production/ui/Assemblies/AssemblyInstructionHeader";
+import AssemblyInstructionProperties from "~/modules/production/ui/Assemblies/AssemblyInstructionProperties";
 import type { Handle } from "~/utils/handle";
 import { getPrivateUrl, path } from "~/utils/path";
 
 export const handle: Handle = {
-  breadcrumb: msg`Assembly`,
+  breadcrumb: msg`Assemblies`,
   to: path.to.assemblyInstructions,
-  module: "assembly"
+  module: "production"
 };
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { client, companyId } = await requirePermissions(request, {
-    view: "assembly",
+    view: "production",
     role: "employee"
   });
 
@@ -74,7 +74,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
   const { client, companyId, userId } = await requirePermissions(request, {
-    update: "assembly"
+    update: "production"
   });
 
   const { id } = params;
@@ -122,7 +122,7 @@ export default function AssemblyInstructionRoute() {
   const mode = useMode();
 
   const isDisabled =
-    instruction.status !== "Draft" || !permissions.can("update", "assembly");
+    instruction.status !== "Draft" || !permissions.can("update", "production");
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(
     steps[0]?.id ?? null

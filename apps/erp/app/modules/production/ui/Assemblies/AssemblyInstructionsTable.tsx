@@ -160,7 +160,7 @@ const AssemblyInstructionsTable = memo(
         return (
           <>
             <MenuItem
-              disabled={!permissions.can("update", "assembly")}
+              disabled={!permissions.can("update", "production")}
               onClick={() => {
                 navigate(path.to.assemblyInstruction(row.id));
               }}
@@ -170,7 +170,7 @@ const AssemblyInstructionsTable = memo(
             </MenuItem>
             <MenuItem
               destructive
-              disabled={!permissions.can("delete", "assembly")}
+              disabled={!permissions.can("delete", "production")}
               onClick={() => {
                 flushSync(() => {
                   setSelectedInstruction(row);
@@ -194,7 +194,7 @@ const AssemblyInstructionsTable = memo(
           columns={columns}
           count={count}
           primaryAction={
-            permissions.can("create", "assembly") && (
+            permissions.can("create", "production") && (
               <New
                 label="Assembly Instruction"
                 to={path.to.newAssemblyInstruction}

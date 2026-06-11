@@ -9,9 +9,9 @@ export const meta: MetaFunction = () => {
 };
 
 export const handle: Handle = {
-  breadcrumb: msg`Assembly`,
-  to: path.to.assemblyInstructions,
-  module: "assembly"
+  breadcrumb: msg`Production`,
+  to: path.to.production,
+  module: "production"
 };
 
 export default function AssemblyRoute() {

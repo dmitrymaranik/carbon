@@ -29,7 +29,7 @@ import {
   assemblyInstructionStepValidator,
   fastenerSchema,
   motionSchema
-} from "../../assembly.models";
+} from "../../production.models";
 import type {
   AssemblyInstructionStepRow,
   AssemblyStandardNote,
@@ -319,7 +319,7 @@ function StepForm({
 
   const cannotSave =
     isDisabled ||
-    !permissions.can("update", "assembly") ||
+    !permissions.can("update", "production") ||
     !motionValidation.success ||
     !fastenerValidation.success;
 

@@ -1,5 +1,5 @@
 import { Status } from "@carbon/react";
-import type { assemblyInstructionStatuses } from "../../assembly.models";
+import type { assemblyInstructionStatuses } from "../../production.models";
 
 type AssemblyInstructionStatusProps = {
   status?: (typeof assemblyInstructionStatuses)[number] | null;

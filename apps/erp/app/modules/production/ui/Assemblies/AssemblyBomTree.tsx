@@ -17,7 +17,7 @@ import {
   LuSettings
 } from "react-icons/lu";
 import { Empty } from "~/components";
-import { toViewerStep } from "../../assembly.utils";
+import { toViewerStep } from "../../production.service";
 import type { AssemblyInstructionStepRow } from "../../types";
 import { PartColorSwatch } from "./AssemblyStepBom";
 

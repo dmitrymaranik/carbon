@@ -6,13 +6,13 @@ import { redirect } from "react-router";
 import {
   assemblyInstructionStatuses,
   updateAssemblyInstructionStatus
-} from "~/modules/assembly";
+} from "~/modules/production";
 import { path, requestReferrer } from "~/utils/path";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
   const { client, userId } = await requirePermissions(request, {
-    update: "assembly"
+    update: "production"
   });
 
   const { id } = params;

@@ -3,13 +3,13 @@ import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import type { ActionFunctionArgs } from "react-router";
 import { data } from "react-router";
-import { updateAssemblyInstructionStepRequirementOrder } from "~/modules/assembly";
+import { updateAssemblyInstructionStepRequirementOrder } from "~/modules/production";
 import { getDatabaseClient } from "~/services/database.server";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
   const { userId } = await requirePermissions(request, {
-    update: "assembly"
+    update: "production"
   });
 
   if (!params.id) throw new Error("Could not find id");

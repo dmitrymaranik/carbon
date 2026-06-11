@@ -32,7 +32,7 @@ import { Empty } from "~/components";
 import { ConfirmDelete } from "~/components/Modals";
 import { usePermissions } from "~/hooks";
 import { path } from "~/utils/path";
-import { toViewerStep } from "../../assembly.utils";
+import { toViewerStep } from "../../production.service";
 import type { AssemblyInstructionStepRow } from "../../types";
 import AssemblyBomTree from "./AssemblyBomTree";
 
@@ -186,7 +186,7 @@ export default function AssemblyInstructionExplorer({
               </Reorder.Group>
             ) : (
               <Empty>
-                {permissions.can("update", "assembly") && (
+                {permissions.can("update", "production") && (
                   <Button
                     isDisabled={isDisabled}
                     leftIcon={<LuCirclePlus />}
@@ -204,7 +204,7 @@ export default function AssemblyInstructionExplorer({
               className="w-full"
               isDisabled={
                 isDisabled ||
-                !permissions.can("update", "assembly") ||
+                !permissions.can("update", "production") ||
                 newStepFetcher.state !== "idle"
               }
               isLoading={newStepFetcher.state !== "idle"}
@@ -419,7 +419,7 @@ function StepItem({
             <DropdownMenuContent>
               <DropdownMenuItem
                 destructive
-                disabled={!permissions.can("delete", "assembly")}
+                disabled={!permissions.can("delete", "production")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete();

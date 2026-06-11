@@ -916,8 +916,8 @@ msgstr "As the company owner, you can transfer ownership to another employee. Th
 msgid "Ascending"
 msgstr "Ascending"
 
-msgid "Assembly"
-msgstr "Assembly"
+msgid "Assemblies"
+msgstr "Assemblies"
 
 msgid "Assembly:"
 msgstr "Assembly:"

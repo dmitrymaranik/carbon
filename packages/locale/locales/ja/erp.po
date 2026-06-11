@@ -916,7 +916,7 @@ msgstr "会社のオーナーとして、別の従業員に所有権を譲渡で
 msgid "Ascending"
 msgstr "昇順"
 
-msgid "Assembly"
+msgid "Assemblies"
 msgstr ""
 
 msgid "Assembly:"

@@ -7,12 +7,12 @@ import { data } from "react-router";
 import {
   assemblyStandardNoteValidator,
   upsertAssemblyStandardNote
-} from "~/modules/assembly";
+} from "~/modules/production";
 
 export async function action({ request }: ActionFunctionArgs) {
   assertIsPost(request);
   const { client, companyId, userId } = await requirePermissions(request, {
-    create: "assembly"
+    create: "production"
   });
 
   const validation = await validator(assemblyStandardNoteValidator).validate(

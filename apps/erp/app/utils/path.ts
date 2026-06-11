@@ -461,12 +461,12 @@ export const path = {
     activateGauge: (id: string) =>
       generatePath(`${x}/quality/gauges/activate/${id}`),
     assemblyInstruction: (id: string) => generatePath(`${x}/assembly/${id}`),
-    assemblyInstructions: `${x}/assembly`,
+    assemblyInstructions: `${x}/production/assemblies`,
     assemblyInstructionStatus: (id: string) =>
       generatePath(`${x}/assembly/${id}/status`),
     deleteAssemblyInstruction: (id: string) =>
       generatePath(`${x}/assembly/delete/${id}`),
-    newAssemblyInstruction: `${x}/assembly/new`,
+    newAssemblyInstruction: `${x}/production/assemblies/new`,
     newAssemblyInstructionStep: (id: string) =>
       generatePath(`${x}/assembly/${id}/steps/new`),
     assemblyInstructionStep: (id: string, stepId: string) =>

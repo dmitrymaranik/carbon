@@ -7,12 +7,12 @@ import { data } from "react-router";
 import {
   assemblyStepRequirementValidator,
   upsertAssemblyInstructionStepRequirement
-} from "~/modules/assembly";
+} from "~/modules/production";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
   const { client, companyId, userId } = await requirePermissions(request, {
-    update: "assembly"
+    update: "production"
   });
 
   const { requirementId } = params;

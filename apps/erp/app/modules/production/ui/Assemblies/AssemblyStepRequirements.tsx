@@ -35,7 +35,7 @@ import { getPrivateUrl, path } from "~/utils/path";
 import {
   type assemblyNoteSeverities,
   assemblyStepRequirementValidator
-} from "../../assembly.models";
+} from "../../production.models";
 import type {
   AssemblyStandardNote,
   AssemblyStepRequirement
@@ -268,7 +268,7 @@ function RequirementRow({
           )}
         </>
       )}
-      {!isDisabled && permissions.can("delete", "assembly") && (
+      {!isDisabled && permissions.can("delete", "production") && (
         <IconButton
           aria-label={`Delete ${requirement.name ?? "requirement"}`}
           icon={<LuTrash />}
@@ -461,7 +461,7 @@ function StandardNotesSection({
           ))}
         </ul>
       )}
-      {permissions.can("update", "assembly") && (
+      {permissions.can("update", "production") && (
         <Button
           variant="ghost"
           size="sm"

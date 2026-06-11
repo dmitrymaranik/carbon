@@ -6,11 +6,11 @@ import { data } from "react-router";
 import {
   deleteAssemblyInstructionStepRequirement,
   getAssemblyInstructionStepRequirement
-} from "~/modules/assembly";
+} from "~/modules/production";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const { client } = await requirePermissions(request, {
-    delete: "assembly"
+    delete: "production"
   });
 
   const { requirementId } = params;

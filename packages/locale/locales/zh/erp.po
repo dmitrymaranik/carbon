@@ -916,7 +916,7 @@ msgstr "作为公司所有者，您可以将所有权转移给另一名员工。
 msgid "Ascending"
 msgstr "升序"
 
-msgid "Assembly"
+msgid "Assemblies"
 msgstr ""
 
 msgid "Assembly:"

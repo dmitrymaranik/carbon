@@ -1,5 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import {
+  LuBlocks,
   LuChartLine,
   LuCirclePlay,
   LuListChecks,
@@ -31,6 +32,12 @@ export default function useProductionSubmodules() {
           to: path.to.procedures,
           icon: <LuListChecks />,
           table: "procedure",
+          role: "employee"
+        },
+        {
+          name: t`Assemblies`,
+          to: path.to.assemblyInstructions,
+          icon: <LuBlocks />,
           role: "employee"
         }
       ]

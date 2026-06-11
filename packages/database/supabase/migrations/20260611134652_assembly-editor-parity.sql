@@ -53,27 +53,27 @@ ALTER TABLE "assemblyGroup" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "SELECT" ON "assemblyGroup"
   FOR SELECT USING (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_view')::text[]
+      get_companies_with_employee_permission('production_view')::text[]
     )
   );
 
 CREATE POLICY "INSERT" ON "assemblyGroup"
   FOR INSERT WITH CHECK (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_create')::text[]
+      get_companies_with_employee_permission('production_create')::text[]
     )
   );
 
 CREATE POLICY "UPDATE" ON "assemblyGroup"
   FOR UPDATE USING (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_update')::text[]
+      get_companies_with_employee_permission('production_update')::text[]
     )
   );
 
 CREATE POLICY "DELETE" ON "assemblyGroup"
   FOR DELETE USING (
     "companyId" = ANY (
-      get_companies_with_employee_permission('assembly_delete')::text[]
+      get_companies_with_employee_permission('production_delete')::text[]
     )
   );

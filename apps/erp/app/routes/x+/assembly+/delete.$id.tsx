@@ -3,12 +3,12 @@ import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import type { ActionFunctionArgs } from "react-router";
 import { data, redirect } from "react-router";
-import { deleteAssemblyInstruction } from "~/modules/assembly";
+import { deleteAssemblyInstruction } from "~/modules/production";
 import { path } from "~/utils/path";
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const { client } = await requirePermissions(request, {
-    delete: "assembly"
+    delete: "production"
   });
 
   const { id } = params;

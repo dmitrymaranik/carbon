@@ -916,7 +916,7 @@ msgstr "Come proprietario dell'azienda, puoi trasferire la proprietà a un altro
 msgid "Ascending"
 msgstr "Ascendente"
 
-msgid "Assembly"
+msgid "Assemblies"
 msgstr ""
 
 msgid "Assembly:"

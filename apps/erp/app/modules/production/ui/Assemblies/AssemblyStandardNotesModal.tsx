@@ -20,7 +20,7 @@ import { path } from "~/utils/path";
 import {
   type assemblyNoteSeverities,
   assemblyStandardNoteValidator
-} from "../../assembly.models";
+} from "../../production.models";
 import type { AssemblyStandardNote } from "../../types";
 import { SeverityIcon } from "./AssemblyStepRequirements";
 
@@ -96,7 +96,7 @@ export default function AssemblyStandardNotesModal({
                       size="sm"
                       onClick={() => onEdit(note)}
                     />
-                    {permissions.can("delete", "assembly") && (
+                    {permissions.can("delete", "production") && (
                       <IconButton
                         aria-label={`Delete ${note.name}`}
                         icon={<LuTrash />}

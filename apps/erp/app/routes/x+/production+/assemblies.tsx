@@ -2,21 +2,21 @@ import { requirePermissions } from "@carbon/auth/auth.server";
 import { VStack } from "@carbon/react";
 import { msg } from "@lingui/core/macro";
 import type { LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
-import { getAssemblyInstructions } from "~/modules/assembly";
-import AssemblyInstructionsTable from "~/modules/assembly/ui/Assembly/AssemblyInstructionsTable";
+import { Outlet, useLoaderData } from "react-router";
+import { getAssemblyInstructions } from "~/modules/production";
+import AssemblyInstructionsTable from "~/modules/production/ui/Assemblies/AssemblyInstructionsTable";
 import type { Handle } from "~/utils/handle";
 import { path } from "~/utils/path";
 import { getGenericQueryFilters } from "~/utils/query";
 
 export const handle: Handle = {
-  breadcrumb: msg`Assembly`,
+  breadcrumb: msg`Assemblies`,
   to: path.to.assemblyInstructions
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { client, companyId } = await requirePermissions(request, {
-    view: "assembly",
+    view: "production",
     role: "employee"
   });
 
@@ -44,6 +44,7 @@ export default function AssemblyInstructionsRoute() {
   return (
     <VStack spacing={0} className="h-full">
       <AssemblyInstructionsTable data={instructions} count={count} />
+      <Outlet />
     </VStack>
   );
 }

@@ -15,7 +15,6 @@ import type {
 import { Await, redirect, useLoaderData, useParams } from "react-router";
 import { CadModel, DeferredFiles } from "~/components";
 import { usePermissions, useRouteData } from "~/hooks";
-import CreateAssemblyInstruction from "~/modules/assembly/ui/Assembly/CreateAssemblyInstruction";
 import type { ItemFile, MakeMethod, PartSummary } from "~/modules/items";
 import {
   getConfigurationParameters,
@@ -40,6 +39,7 @@ import {
 } from "~/modules/items/ui/Item";
 import ItemManufacturingForm from "~/modules/items/ui/Item/ItemManufacturingForm";
 import { ConfigurationParametersForm } from "~/modules/items/ui/Parts";
+import CreateAssemblyInstruction from "~/modules/production/ui/Assemblies/CreateAssemblyInstruction";
 import type { MethodItemType, MethodType } from "~/modules/shared";
 import { getTagsList } from "~/modules/shared";
 import { getCustomFields, setCustomFields } from "~/utils/form";
@@ -362,7 +362,7 @@ export default function PartDetailsRoute() {
             modelPath={partData?.partSummary?.modelPath ?? null}
             title={t`CAD Model`}
           />
-          {assemblyModel && permissions.can("create", "assembly") && (
+          {assemblyModel && permissions.can("create", "production") && (
             <CreateAssemblyInstruction
               itemId={itemId}
               modelUploadId={assemblyModel.id}

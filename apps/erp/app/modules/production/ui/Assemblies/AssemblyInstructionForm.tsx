@@ -14,7 +14,7 @@ import type { z } from "zod";
 import { Combobox, Hidden, Input, Item, Submit } from "~/components/Form";
 import { usePermissions } from "~/hooks";
 import { path } from "~/utils/path";
-import { assemblyInstructionValidator } from "../../assembly.models";
+import { assemblyInstructionValidator } from "../../production.models";
 
 type AssemblyInstructionFormProps = {
   initialValues: z.infer<typeof assemblyInstructionValidator>;
@@ -31,7 +31,7 @@ const AssemblyInstructionForm = ({
 }: AssemblyInstructionFormProps) => {
   const permissions = usePermissions();
 
-  const isDisabled = !permissions.can("create", "assembly");
+  const isDisabled = !permissions.can("create", "production");
 
   const modelOptions = models.map((model) => ({
     value: model.id,

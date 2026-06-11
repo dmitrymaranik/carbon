@@ -27,7 +27,7 @@ import { getLinkToItemDetails } from "~/modules/items/ui/Item/ItemForm";
 import type { MethodItemType } from "~/modules/shared";
 import { useItems } from "~/stores";
 import { path } from "~/utils/path";
-import type { assemblyInstructionStatuses } from "../../assembly.models";
+import type { assemblyInstructionStatuses } from "../../production.models";
 import type { AssemblyInstruction } from "../../types";
 import AssemblyInstructionStatus from "./AssemblyInstructionStatus";
 
@@ -52,7 +52,7 @@ const AssemblyInstructionHeader = () => {
   const [name, setName] = useState(instruction?.name ?? "");
 
   const isDraft = instruction?.status === "Draft";
-  const canUpdate = permissions.can("update", "assembly");
+  const canUpdate = permissions.can("update", "production");
 
   const [items] = useItems();
   const item = instruction?.itemId
@@ -118,7 +118,7 @@ const AssemblyInstructionHeader = () => {
           <DropdownMenuContent>
             <DropdownMenuItem
               disabled={
-                !permissions.can("delete", "assembly") ||
+                !permissions.can("delete", "production") ||
                 !permissions.is("employee")
               }
               destructive

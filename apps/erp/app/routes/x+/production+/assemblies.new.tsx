@@ -7,13 +7,13 @@ import { data, redirect, useLoaderData, useNavigate } from "react-router";
 import {
   assemblyInstructionValidator,
   upsertAssemblyInstruction
-} from "~/modules/assembly";
-import AssemblyInstructionForm from "~/modules/assembly/ui/Assembly/AssemblyInstructionForm";
+} from "~/modules/production";
+import AssemblyInstructionForm from "~/modules/production/ui/Assemblies/AssemblyInstructionForm";
 import { path } from "~/utils/path";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { client, companyId } = await requirePermissions(request, {
-    create: "assembly"
+    create: "production"
   });
 
   const url = new URL(request.url);
@@ -38,7 +38,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   assertIsPost(request);
   const { client, companyId, userId } = await requirePermissions(request, {
-    create: "assembly"
+    create: "production"
   });
 
   const validation = await validator(assemblyInstructionValidator).validate(
