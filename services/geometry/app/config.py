@@ -38,3 +38,14 @@ def allowed_url_hosts() -> list[str]:
 def require_https() -> bool:
     """Require https URLs unless explicitly disabled for local development."""
     return os.environ.get("GEOMETRY_DEV_MODE", "").lower() != "true"
+
+
+def verify_tls() -> bool:
+    """Verify TLS certificates.
+
+    Disabled in dev mode: local stacks serve storage through a self-signed
+    proxy CA (portless) that recent Python releases reject outright
+    ("Missing Authority Key Identifier"), even when the CA is trusted via
+    SSL_CERT_FILE.
+    """
+    return os.environ.get("GEOMETRY_DEV_MODE", "").lower() != "true"

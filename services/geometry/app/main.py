@@ -147,7 +147,11 @@ def _validate_url(url: str) -> None:
 def _download(url: str, destination: Path) -> None:
     limit = config.max_source_bytes()
     try:
-        with httpx.Client(timeout=HTTP_TIMEOUT_S, follow_redirects=True) as client:
+        with httpx.Client(
+            timeout=HTTP_TIMEOUT_S,
+            follow_redirects=True,
+            verify=config.verify_tls(),
+        ) as client:
             with client.stream("GET", url) as response:
                 response.raise_for_status()
                 declared = response.headers.get("Content-Length")
@@ -172,7 +176,7 @@ def _download(url: str, destination: Path) -> None:
 
 def _upload(url: str, body: bytes, content_type: str) -> None:
     try:
-        with httpx.Client(timeout=HTTP_TIMEOUT_S) as client:
+        with httpx.Client(timeout=HTTP_TIMEOUT_S, verify=config.verify_tls()) as client:
             response = client.put(url, content=body, headers={"Content-Type": content_type})
             response.raise_for_status()
     except httpx.HTTPError as exc:
