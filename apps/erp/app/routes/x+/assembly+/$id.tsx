@@ -14,6 +14,7 @@ import { PanelProvider, ResizablePanels } from "~/components/Layout/Panels";
 import { usePermissions } from "~/hooks";
 import {
   assemblyInstructionValidator,
+  getAssemblyGroups,
   getAssemblyInstruction,
   getAssemblyInstructionStepRequirements,
   getAssemblyInstructionSteps,
@@ -42,10 +43,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const { id } = params;
   if (!id) throw new Error("Could not find id");
 
-  const [instruction, steps, standardNotes] = await Promise.all([
+  const [instruction, steps, standardNotes, groups] = await Promise.all([
     getAssemblyInstruction(client, id),
     getAssemblyInstructionSteps(client, id),
-    getAssemblyStandardNotes(client, companyId)
+    getAssemblyStandardNotes(client, companyId),
+    getAssemblyGroups(client, id)
   ]);
 
   if (instruction.error) {
@@ -67,7 +69,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     instruction: instruction.data,
     steps: steps.data ?? [],
     requirements: requirements.data ?? [],
-    standardNotes: standardNotes.data ?? []
+    standardNotes: standardNotes.data ?? [],
+    groups: groups.data ?? []
   };
 }
 
@@ -116,7 +119,7 @@ export default function AssemblyInstructionRoute() {
   const { id } = useParams();
   if (!id) throw new Error("Could not find id");
 
-  const { instruction, steps, requirements, standardNotes } =
+  const { instruction, steps, requirements, standardNotes, groups } =
     useLoaderData<typeof loader>();
   const permissions = usePermissions();
   const mode = useMode();
@@ -136,6 +139,7 @@ export default function AssemblyInstructionRoute() {
     [graph]
   );
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
+  const [hiddenNodeIds, setHiddenNodeIds] = useState<string[]>([]);
 
   const selectedStep =
     steps.find((step) => step.id === selectedStepId) ?? steps[0] ?? null;
@@ -164,11 +168,13 @@ export default function AssemblyInstructionRoute() {
               explorer={
                 <AssemblyInstructionExplorer
                   steps={steps}
+                  groups={groups}
                   selectedStepId={selectedStep?.id ?? null}
                   isDisabled={isDisabled}
                   graphIndex={graphIndex}
                   onSelectStep={onSelectStep}
                   onHighlightParts={setHighlightedNodeIds}
+                  onHideParts={setHiddenNodeIds}
                 />
               }
               content={
@@ -198,6 +204,7 @@ export default function AssemblyInstructionRoute() {
                           }
                           onGraphLoaded={setGraph}
                           highlightedNodeIds={highlightedNodeIds}
+                          hiddenNodeIds={hiddenNodeIds}
                           readOnly={isDisabled}
                           mode={mode}
                           className="h-full"

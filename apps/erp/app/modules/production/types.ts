@@ -1,5 +1,6 @@
 import type {
   getActiveProductionEvents,
+  getAssemblyGroups,
   getAssemblyInstruction,
   getAssemblyInstructionStepRequirements,
   getAssemblyInstructionSteps,
@@ -159,4 +160,8 @@ export type AssemblyStepRequirement = NonNullable<
 
 export type AssemblyStandardNote = NonNullable<
   Awaited<ReturnType<typeof getAssemblyStandardNotes>>["data"]
+>[number];
+
+export type AssemblyGroup = NonNullable<
+  Awaited<ReturnType<typeof getAssemblyGroups>>["data"]
 >[number];

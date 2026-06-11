@@ -41,6 +41,8 @@ export type AssemblyPlayerProps = {
    * Independent of click-selection.
    */
   highlightedNodeIds?: string[];
+  /** Parts hidden from the viewer entirely (fixtures, reference geometry) */
+  hiddenNodeIds?: string[];
   /** Disables part selection (MES playback) */
   readOnly?: boolean;
   /** Initial render mode for future-step parts */
@@ -71,6 +73,7 @@ export function AssemblyPlayer({
   onSelectParts,
   onGraphLoaded,
   highlightedNodeIds,
+  hiddenNodeIds,
   readOnly = false,
   defaultFutureMode = "ghost",
   mode = "dark",
@@ -193,6 +196,7 @@ export function AssemblyPlayer({
               isPlaying={isPlaying}
               futureMode={futureMode}
               highlightedNodeIds={highlightedNodeIds}
+              hiddenNodeIds={hiddenNodeIds}
               readOnly={readOnly}
               onSelectParts={onSelectParts}
               segments={segments}
@@ -388,6 +392,7 @@ function AssemblyScene({
   isPlaying,
   futureMode,
   highlightedNodeIds,
+  hiddenNodeIds,
   readOnly,
   onSelectParts,
   segments,
@@ -404,6 +409,7 @@ function AssemblyScene({
   isPlaying: boolean;
   futureMode: FuturePartsMode;
   highlightedNodeIds?: string[];
+  hiddenNodeIds?: string[];
   readOnly: boolean;
   onSelectParts?: (nodeIds: string[]) => void;
   /** Timeline seconds per step */
@@ -430,6 +436,11 @@ function AssemblyScene({
   const highlightedSet = useMemo(
     () => new Set(highlightedNodeIds ?? []),
     [highlightedNodeIds]
+  );
+
+  const hiddenSet = useMemo(
+    () => new Set(hiddenNodeIds ?? []),
+    [hiddenNodeIds]
   );
 
   /** nodeId → index of the first step that installs it */
@@ -523,6 +534,13 @@ function AssemblyScene({
       });
     }
 
+    // Explicitly hidden parts (fixtures/reference geometry) always hide,
+    // even when highlighted
+    for (const nodeId of hiddenSet) {
+      const node = nodesById.get(nodeId);
+      if (node) node.visible = false;
+    }
+
     // Click-selection renders on top of everything else
     for (const nodeId of selectedIds) {
       const node = nodesById.get(nodeId);
@@ -539,6 +557,7 @@ function AssemblyScene({
     activeStepIndex,
     futureMode,
     highlightedSet,
+    hiddenSet,
     selectedIds
   ]);
 

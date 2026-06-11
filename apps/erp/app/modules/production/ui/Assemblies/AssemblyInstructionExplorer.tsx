@@ -39,25 +39,29 @@ import { ConfirmDelete } from "~/components/Modals";
 import { usePermissions } from "~/hooks";
 import { path } from "~/utils/path";
 import { toViewerStep } from "../../production.service";
-import type { AssemblyInstructionStepRow } from "../../types";
+import type { AssemblyGroup, AssemblyInstructionStepRow } from "../../types";
 import AssemblyBomTree from "./AssemblyBomTree";
 
 type AssemblyInstructionExplorerProps = {
   steps: AssemblyInstructionStepRow[];
+  groups: AssemblyGroup[];
   selectedStepId: string | null;
   isDisabled: boolean;
   graphIndex: AssemblyGraphIndex | null;
   onSelectStep: (stepId: string) => void;
   onHighlightParts: (nodeIds: string[]) => void;
+  onHideParts: (nodeIds: string[]) => void;
 };
 
 export default function AssemblyInstructionExplorer({
   steps,
+  groups,
   selectedStepId,
   isDisabled,
   graphIndex,
   onSelectStep,
-  onHighlightParts
+  onHighlightParts,
+  onHideParts
 }: AssemblyInstructionExplorerProps) {
   const { id } = useParams();
   if (!id) throw new Error("Could not find id");
@@ -301,7 +305,10 @@ export default function AssemblyInstructionExplorer({
           <AssemblyBomTree
             graphIndex={graphIndex}
             steps={steps}
+            groups={groups}
+            isDisabled={isDisabled}
             onHighlightParts={onHighlightParts}
+            onHideParts={onHideParts}
             onSelectStep={onSelectStep}
           />
         </TabsContent>

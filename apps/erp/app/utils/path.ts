@@ -485,6 +485,10 @@ export const path = {
       generatePath(`${x}/assembly/${id}/requirements/delete/${requirementId}`),
     assemblyStepRequirementOrder: (id: string) =>
       generatePath(`${x}/assembly/${id}/requirements/order`),
+    newAssemblyGroup: (id: string) =>
+      generatePath(`${x}/assembly/${id}/groups/new`),
+    deleteAssemblyGroup: (id: string, groupId: string) =>
+      generatePath(`${x}/assembly/${id}/groups/delete/${groupId}`),
     newAssemblyStandardNote: `${x}/assembly/standard-notes/new`,
     assemblyStandardNote: (noteId: string) =>
       generatePath(`${x}/assembly/standard-notes/${noteId}`),

@@ -3497,12 +3497,24 @@ export async function updateAssemblyInstructionStatus(
     updatedBy: string;
   }
 ) {
+  // Each publish bumps the version ("Edit N" in the header)
+  let version: number | undefined;
+  if (data.status === "Published") {
+    const current = await client
+      .from("assemblyInstruction")
+      .select("version")
+      .eq("id", id)
+      .single();
+    version = (current.data?.version ?? 0) + 1;
+  }
+
   return client
     .from("assemblyInstruction")
     .update({
       status: data.status,
       publishedAt:
         data.status === "Published" ? new Date().toISOString() : undefined,
+      ...(version !== undefined ? { version } : {}),
       updatedBy: data.updatedBy,
       updatedAt: new Date().toISOString()
     })

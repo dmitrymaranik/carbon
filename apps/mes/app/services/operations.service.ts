@@ -582,7 +582,7 @@ export async function getJobOperationAssembly(
     client
       .from("assemblyInstructionStep")
       .select(
-        "id, title, instructionText, partNodeIds, motion, camera, fastener"
+        "id, title, instructionText, partNodeIds, motion, camera, fastener, durationSeconds"
       )
       .eq("assemblyInstructionId", assemblyInstructionId)
       .order("sortOrder", { ascending: true })
@@ -591,11 +591,24 @@ export async function getJobOperationAssembly(
   const modelUpload = instruction.data?.modelUpload;
   if (!modelUpload?.glbPath || !modelUpload?.graphPath) return null;
 
+  // Per-step process data (tools/notes/media); name and severity are
+  // denormalized on the row so no joins are needed for display
+  const stepIds = (steps.data ?? []).map((step) => step.id);
+  const requirements =
+    stepIds.length > 0
+      ? await client
+          .from("assemblyInstructionStepRequirement")
+          .select("id, stepId, type, name, text, severity, filePath, quantity")
+          .in("stepId", stepIds)
+          .order("sortOrder", { ascending: true })
+      : { data: [] };
+
   return {
     name: instruction.data?.name ?? null,
     glbPath: modelUpload.glbPath,
     graphPath: modelUpload.graphPath,
-    steps: steps.data ?? []
+    steps: steps.data ?? [],
+    requirements: requirements.data ?? []
   };
 }
 

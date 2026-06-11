@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Copy,
   DropdownMenu,
@@ -22,7 +23,12 @@ import {
 import { Link, useFetcher, useParams } from "react-router";
 import { usePanels } from "~/components/Layout";
 import ConfirmDelete from "~/components/Modals/ConfirmDelete";
-import { usePermissions, useRouteData } from "~/hooks";
+import {
+  useDateFormatter,
+  usePermissions,
+  useRouteData,
+  useUser
+} from "~/hooks";
 import { getLinkToItemDetails } from "~/modules/items/ui/Item/ItemForm";
 import type { MethodItemType } from "~/modules/shared";
 import { useItems } from "~/stores";
@@ -43,6 +49,8 @@ const AssemblyInstructionHeader = () => {
   const instruction = routeData?.instruction;
 
   const permissions = usePermissions();
+  const user = useUser();
+  const { formatRelativeTime } = useDateFormatter();
   const { toggleExplorer, toggleProperties } = usePanels();
   const deleteDisclosure = useDisclosure();
 
@@ -105,6 +113,18 @@ const AssemblyInstructionHeader = () => {
           }
         />
         <AssemblyInstructionStatus status={instruction?.status} />
+        {instruction && (
+          <Badge variant="outline" className="shrink-0 tabular-nums">
+            Edit {instruction.version}
+          </Badge>
+        )}
+        {instruction && (
+          <span className="hidden whitespace-nowrap text-xs text-muted-foreground lg:inline">
+            {instruction.createdBy === user.id ? "By you · " : ""}
+            edited{" "}
+            {formatRelativeTime(instruction.updatedAt ?? instruction.createdAt)}
+          </span>
+        )}
         <Copy text={instruction?.name ?? ""} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

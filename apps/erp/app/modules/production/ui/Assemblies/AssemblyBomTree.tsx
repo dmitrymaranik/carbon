@@ -1,53 +1,97 @@
 import {
   Badge,
+  Button,
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
   cn,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   IconButton,
+  Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
   Popover,
   PopoverContent,
-  PopoverTrigger
+  PopoverTrigger,
+  VStack
 } from "@carbon/react";
 import type { AssemblyGraphIndex, PartGroup } from "@carbon/viewer";
 import { describeStep } from "@carbon/viewer";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { MouseEvent } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LuArrowDownAZ,
   LuArrowDownWideNarrow,
-  LuSettings
+  LuBlocks,
+  LuEye,
+  LuEyeOff,
+  LuFolderTree,
+  LuSettings,
+  LuSquareStack,
+  LuTrash
 } from "react-icons/lu";
+import { Link, useFetcher, useParams } from "react-router";
 import { Empty } from "~/components";
+import { usePermissions } from "~/hooks";
+import { path } from "~/utils/path";
+import type { assemblyGroupTypes } from "../../production.models";
 import { toViewerStep } from "../../production.service";
-import type { AssemblyInstructionStepRow } from "../../types";
+import type { AssemblyGroup, AssemblyInstructionStepRow } from "../../types";
 import { PartColorSwatch } from "./AssemblyStepBom";
 
 type SortMode = "count" | "alpha";
+type GroupType = (typeof assemblyGroupTypes)[number];
 
 type AssemblyBomTreeProps = {
   graphIndex: AssemblyGraphIndex | null;
   steps: AssemblyInstructionStepRow[];
+  groups: AssemblyGroup[];
+  isDisabled: boolean;
   onHighlightParts: (nodeIds: string[]) => void;
+  onHideParts: (nodeIds: string[]) => void;
   onSelectStep: (stepId: string) => void;
 };
 
 /**
  * Bill of materials derived from the model's assembly graph: every distinct
- * part with its instance count. Selecting rows highlights all instances in
- * the viewer (cmd/ctrl toggles, shift selects a range).
+ * part with its instance count, plus authored part groups (clusters, kits,
+ * combinations, subassemblies). Selecting rows highlights all instances in
+ * the viewer; selections can be grouped via the toolbar or right-click menu.
  */
 export default function AssemblyBomTree({
   graphIndex,
   steps,
+  groups,
+  isDisabled,
   onHighlightParts,
+  onHideParts,
   onSelectStep
 }: AssemblyBomTreeProps) {
+  const { id } = useParams();
+  if (!id) throw new Error("Could not find id");
+
+  const permissions = usePermissions();
+  const canGroup = !isDisabled && permissions.can("create", "production");
+
   const [sortMode, setSortMode] = useState<SortMode>("count");
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(
     new Set()
   );
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [hiddenKeys, setHiddenKeys] = useState<ReadonlySet<string>>(new Set());
+  const [groupModalType, setGroupModalType] = useState<GroupType | null>(null);
   const lastClickedIndexRef = useRef<number | null>(null);
 
-  const groups = useMemo(() => {
+  const partGroups = useMemo(() => {
     if (!graphIndex) return [];
     const sorted = [...graphIndex.groups];
     if (sortMode === "count") {
@@ -83,10 +127,28 @@ export default function AssemblyBomTree({
     return usage;
   }, [steps, graphIndex]);
 
+  const selectedNodeIds = useMemo(
+    () =>
+      partGroups
+        .filter((group) => selectedKeys.has(group.key))
+        .flatMap((group) => group.nodeIds),
+    [partGroups, selectedKeys]
+  );
+
+  // Hidden parts: union of all hidden part-group keys
+  useEffect(() => {
+    onHideParts(
+      partGroups
+        .filter((group) => hiddenKeys.has(group.key))
+        .flatMap((group) => group.nodeIds)
+    );
+  }, [hiddenKeys, partGroups, onHideParts]);
+
   const applySelection = (next: ReadonlySet<string>) => {
     setSelectedKeys(next);
+    setSelectedGroupId(null);
     onHighlightParts(
-      groups
+      partGroups
         .filter((group) => next.has(group.key))
         .flatMap((group) => group.nodeIds)
     );
@@ -103,7 +165,7 @@ export default function AssemblyBomTree({
       const start = Math.min(lastClickedIndexRef.current, rowIndex);
       const end = Math.max(lastClickedIndexRef.current, rowIndex);
       for (let i = start; i <= end; i++) {
-        const inRange = groups[i];
+        const inRange = partGroups[i];
         if (inRange) next.add(inRange.key);
       }
     } else if (event.metaKey || event.ctrlKey) {
@@ -123,9 +185,29 @@ export default function AssemblyBomTree({
     applySelection(next);
   };
 
+  const onToggleGroupHighlight = (group: AssemblyGroup) => {
+    if (selectedGroupId === group.id) {
+      setSelectedGroupId(null);
+      onHighlightParts([]);
+      return;
+    }
+    setSelectedKeys(new Set());
+    setSelectedGroupId(group.id);
+    onHighlightParts(group.partNodeIds ?? []);
+  };
+
+  const onHideSelection = () => {
+    const next = new Set(hiddenKeys);
+    for (const key of selectedKeys) next.add(key);
+    setHiddenKeys(next);
+    applySelection(new Set());
+  };
+
+  const onShowAll = () => setHiddenKeys(new Set());
+
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
-    count: groups.length,
+    count: partGroups.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 36,
     overscan: 12
@@ -143,70 +225,346 @@ export default function AssemblyBomTree({
 
   return (
     <div className="flex h-full w-full flex-col">
+      {groups.length > 0 && (
+        <div className="w-full flex-none border-b border-border">
+          <h4 className="px-3 pt-2 text-xxs text-foreground/70 uppercase font-light tracking-wide">
+            Groups
+          </h4>
+          <ul className="w-full pb-1">
+            {groups.map((group) => (
+              <GroupRow
+                key={group.id}
+                group={group}
+                instructionId={id}
+                isSelected={selectedGroupId === group.id}
+                isDisabled={isDisabled}
+                onClick={() => onToggleGroupHighlight(group)}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="flex w-full flex-none items-center justify-between border-b border-border px-3 py-1.5">
         <span className="text-xs text-muted-foreground tabular-nums">
-          {groups.length} part{groups.length === 1 ? "" : "s"} ·{" "}
-          {graphIndex.graph.partCount} instance
-          {graphIndex.graph.partCount === 1 ? "" : "s"}
+          {selectedKeys.size > 0
+            ? `${selectedKeys.size} selected`
+            : `${partGroups.length} part${partGroups.length === 1 ? "" : "s"} · ${graphIndex.graph.partCount} instance${graphIndex.graph.partCount === 1 ? "" : "s"}`}
         </span>
-        <IconButton
-          aria-label={
-            sortMode === "count" ? "Sort alphabetically" : "Sort by count"
-          }
-          icon={
-            sortMode === "count" ? <LuArrowDownWideNarrow /> : <LuArrowDownAZ />
-          }
-          variant="ghost"
-          size="sm"
-          onClick={() =>
-            setSortMode((mode) => (mode === "count" ? "alpha" : "count"))
-          }
-        />
-      </div>
-      <div
-        ref={parentRef}
-        className="w-full flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent"
-        onKeyDown={(event) => {
-          if (event.key === "Escape" && selectedKeys.size > 0) {
-            applySelection(new Set());
-          }
-        }}
-      >
-        <div
-          className="relative w-full"
-          style={{ height: virtualizer.getTotalSize() }}
-        >
-          {virtualizer.getVirtualItems().map((virtualRow) => {
-            const group = groups[virtualRow.index];
-            if (!group) return null;
-            return (
-              <BomRow
-                key={group.key}
-                group={group}
-                isSelected={selectedKeys.has(group.key)}
-                usage={stepUsage.get(group.key) ?? []}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: virtualRow.size,
-                  transform: `translateY(${virtualRow.start}px)`
-                }}
-                onClick={(event) => onRowClick(event, group, virtualRow.index)}
-                onSelectStep={onSelectStep}
-              />
-            );
-          })}
+        <div className="flex items-center gap-1">
+          {selectedKeys.size > 0 && canGroup && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="sm" leftIcon={<LuBlocks />}>
+                  Group
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {selectionGroupTypes.map(({ type, label, icon: Icon }) => (
+                  <DropdownMenuItem
+                    key={type}
+                    onClick={() => setGroupModalType(type)}
+                  >
+                    <Icon className="mr-2 h-4 w-4" />
+                    {label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {selectedKeys.size > 0 && (
+            <IconButton
+              aria-label="Hide selected parts"
+              icon={<LuEyeOff />}
+              variant="ghost"
+              size="sm"
+              onClick={onHideSelection}
+            />
+          )}
+          {hiddenKeys.size > 0 && (
+            <IconButton
+              aria-label="Show all hidden parts"
+              icon={<LuEye />}
+              variant="ghost"
+              size="sm"
+              onClick={onShowAll}
+            />
+          )}
+          <IconButton
+            aria-label={
+              sortMode === "count" ? "Sort alphabetically" : "Sort by count"
+            }
+            icon={
+              sortMode === "count" ? (
+                <LuArrowDownWideNarrow />
+              ) : (
+                <LuArrowDownAZ />
+              )
+            }
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              setSortMode((mode) => (mode === "count" ? "alpha" : "count"))
+            }
+          />
         </div>
       </div>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            ref={parentRef}
+            className="w-full flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent"
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && selectedKeys.size > 0) {
+                applySelection(new Set());
+              }
+            }}
+          >
+            <div
+              className="relative w-full"
+              style={{ height: virtualizer.getTotalSize() }}
+            >
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const group = partGroups[virtualRow.index];
+                if (!group) return null;
+                return (
+                  <BomRow
+                    key={group.key}
+                    group={group}
+                    isSelected={selectedKeys.has(group.key)}
+                    isHidden={hiddenKeys.has(group.key)}
+                    usage={stepUsage.get(group.key) ?? []}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: virtualRow.size,
+                      transform: `translateY(${virtualRow.start}px)`
+                    }}
+                    onClick={(event) =>
+                      onRowClick(event, group, virtualRow.index)
+                    }
+                    onSelectStep={onSelectStep}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          {selectionGroupTypes.map(({ type, label, icon: Icon }) => (
+            <ContextMenuItem
+              key={type}
+              disabled={!canGroup || selectedKeys.size === 0}
+              onClick={() => setGroupModalType(type)}
+            >
+              <Icon className="mr-2 h-4 w-4" />
+              {label}
+            </ContextMenuItem>
+          ))}
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            disabled={selectedKeys.size === 0}
+            onClick={onHideSelection}
+          >
+            <LuEyeOff className="mr-2 h-4 w-4" />
+            Hide selected parts
+          </ContextMenuItem>
+          <ContextMenuItem disabled={hiddenKeys.size === 0} onClick={onShowAll}>
+            <LuEye className="mr-2 h-4 w-4" />
+            Show all hidden parts
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={selectedKeys.size === 0}
+            onClick={() => applySelection(new Set())}
+          >
+            Clear selection
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+      {groupModalType && (
+        <CreateGroupModal
+          type={groupModalType}
+          instructionId={id}
+          partNodeIds={selectedNodeIds}
+          onClose={() => setGroupModalType(null)}
+          onCreated={() => {
+            setGroupModalType(null);
+            applySelection(new Set());
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+const selectionGroupTypes: {
+  type: GroupType;
+  label: string;
+  icon: typeof LuBlocks;
+}[] = [
+  { type: "Cluster", label: "Create cluster", icon: LuFolderTree },
+  { type: "Kit", label: "Create kit", icon: LuSquareStack },
+  { type: "Combination", label: "Create combination", icon: LuBlocks },
+  { type: "Subassembly", label: "Create subassembly", icon: LuBlocks }
+];
+
+const groupTypeDescriptions: Record<GroupType, string> = {
+  Cluster: "A visual grouping of parts in the tree",
+  Kit: "Parts that are always picked and staged together",
+  Combination: "Parts treated as one logical unit in steps",
+  Subassembly: "Gets its own child instruction with its own build sequence"
+};
+
+function GroupRow({
+  group,
+  instructionId,
+  isSelected,
+  isDisabled,
+  onClick
+}: {
+  group: AssemblyGroup;
+  instructionId: string;
+  isSelected: boolean;
+  isDisabled: boolean;
+  onClick: () => void;
+}) {
+  const permissions = usePermissions();
+  const deleteFetcher = useFetcher<{ success: boolean }>();
+
+  if (deleteFetcher.state !== "idle") return null;
+
+  return (
+    <li
+      className={cn(
+        "group flex w-full cursor-pointer select-none items-center gap-2 px-3 py-1 text-sm hover:bg-accent/30",
+        isSelected && "bg-accent/50 hover:bg-accent/50"
+      )}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") onClick();
+      }}
+    >
+      <Badge variant="secondary" className="shrink-0">
+        {group.type}
+      </Badge>
+      <span className="min-w-0 flex-1 truncate" title={group.name}>
+        {group.type === "Subassembly" && group.childInstructionId ? (
+          <Link
+            to={path.to.assemblyInstruction(group.childInstructionId)}
+            className="hover:underline"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {group.name}
+          </Link>
+        ) : (
+          group.name
+        )}
+      </span>
+      <span className="text-xs text-muted-foreground tabular-nums">
+        {group.partNodeIds?.length ?? 0}
+      </span>
+      {!isDisabled && permissions.can("delete", "production") && (
+        <IconButton
+          aria-label={`Delete group ${group.name}`}
+          icon={<LuTrash />}
+          variant="ghost"
+          size="sm"
+          className="opacity-0 group-hover:opacity-100 focus:opacity-100"
+          onClick={(event) => {
+            event.stopPropagation();
+            deleteFetcher.submit(new FormData(), {
+              method: "post",
+              action: path.to.deleteAssemblyGroup(instructionId, group.id)
+            });
+          }}
+        />
+      )}
+    </li>
+  );
+}
+
+function CreateGroupModal({
+  type,
+  instructionId,
+  partNodeIds,
+  onClose,
+  onCreated
+}: {
+  type: GroupType;
+  instructionId: string;
+  partNodeIds: string[];
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const fetcher = useFetcher<{ success: boolean }>();
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.success) {
+      onCreated();
+    }
+  }, [fetcher.state, fetcher.data, onCreated]);
+
+  const onSubmit = () => {
+    if (!name.trim()) return;
+    const formData = new FormData();
+    formData.append("assemblyInstructionId", instructionId);
+    formData.append("name", name.trim());
+    formData.append("type", type);
+    formData.append("partNodeIds", JSON.stringify(partNodeIds));
+    fetcher.submit(formData, {
+      method: "post",
+      action: path.to.newAssemblyGroup(instructionId)
+    });
+  };
+
+  return (
+    <Modal
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <ModalContent>
+        <ModalHeader>
+          <ModalTitle>Create {type.toLowerCase()}</ModalTitle>
+        </ModalHeader>
+        <ModalBody>
+          <VStack spacing={3} className="w-full">
+            <p className="text-sm text-muted-foreground">
+              {groupTypeDescriptions[type]} · {partNodeIds.length} part
+              {partNodeIds.length === 1 ? "" : "s"} selected
+            </p>
+            <Input
+              aria-label="Group name"
+              placeholder={`${type} name`}
+              value={name}
+              autoFocus
+              onChange={(nameEvent) => setName(nameEvent.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") onSubmit();
+              }}
+            />
+            <Button
+              className="self-end"
+              isDisabled={!name.trim() || fetcher.state !== "idle"}
+              isLoading={fetcher.state !== "idle"}
+              onClick={onSubmit}
+            >
+              Create
+            </Button>
+          </VStack>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
   );
 }
 
 function BomRow({
   group,
   isSelected,
+  isHidden,
   usage,
   style,
   onClick,
@@ -214,6 +572,7 @@ function BomRow({
 }: {
   group: PartGroup;
   isSelected: boolean;
+  isHidden: boolean;
   usage: { stepId: string; index: number; title: string }[];
   style: React.CSSProperties;
   onClick: (event: MouseEvent) => void;
@@ -226,7 +585,8 @@ function BomRow({
       style={style}
       className={cn(
         "group flex cursor-pointer select-none items-center gap-2 border-b border-border px-3 text-sm hover:bg-accent/30",
-        isSelected && "bg-accent/50 hover:bg-accent/50"
+        isSelected && "bg-accent/50 hover:bg-accent/50",
+        isHidden && "opacity-50"
       )}
       onClick={onClick}
       onKeyDown={(event) => {
@@ -240,6 +600,12 @@ function BomRow({
       <span className="min-w-0 flex-1 truncate" title={group.name}>
         {group.name}
       </span>
+      {isHidden && (
+        <LuEyeOff
+          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+          aria-label="Hidden"
+        />
+      )}
       <span className="text-xs text-muted-foreground tabular-nums">
         — {group.count}
       </span>
