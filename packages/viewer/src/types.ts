@@ -88,6 +88,8 @@ export type AssemblyStep = {
   motion: Motion;
   camera: CameraPose | null;
   fastener: Fastener | null;
+  /** Optional authored override for the step's timeline length (seconds) */
+  durationSeconds?: number | null;
 };
 
 /** One node of the assembly tree in graph.json. */

@@ -4,7 +4,7 @@ import {
   AnimationMixer,
   Box3,
   Color,
-  LoopRepeat,
+  LoopOnce,
   type Material,
   type Mesh,
   type MeshBasicMaterial,
@@ -17,7 +17,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { AssemblyViewer } from "./AssemblyViewer";
 import { describeStep } from "./describe";
 import { indexAssemblyGraph } from "./graph";
-import { buildStepClip } from "./motion";
+import { buildStepClip, stepTimelineSeconds } from "./motion";
 import type { AssemblyGraph, AssemblyStep } from "./types";
 import { useAssembly } from "./useAssembly";
 import { cn } from "./utils";
@@ -52,11 +52,15 @@ export type AssemblyPlayerProps = {
 /**
  * Animated assembly playback per the assembly contracts (section 5):
  * - parts of steps before the active step are shown solid at their final pose
- * - parts of the active step loop their insertion motion (with a short hold
- *   at the seated pose)
+ * - parts of the active step play their insertion motion once, holding the
+ *   seated pose
  * - parts of later steps render per the future-parts mode: ghosted at low
  *   opacity in their original color (default), hidden, or solid
  * - parts in no step (base/fixture parts) are always shown solid
+ *
+ * All steps form one continuous timeline: playing advances through steps
+ * automatically, the scrubber maps to global seconds (step boundaries are
+ * tick marks), and the footer shows elapsed / total time.
  */
 export function AssemblyPlayer({
   glbUrl,
@@ -96,12 +100,83 @@ export function AssemblyPlayer({
     ? describeStep(activeStep, graphIndex)
     : null;
 
+  // --- Continuous timeline ---------------------------------------------
+  const segments = useMemo(() => steps.map(stepTimelineSeconds), [steps]);
+  const startTimes = useMemo(() => {
+    let elapsed = 0;
+    return segments.map((segment) => {
+      const start = elapsed;
+      elapsed += segment;
+      return start;
+    });
+  }, [segments]);
+  const totalSeconds = useMemo(
+    () => segments.reduce((sum, segment) => sum + segment, 0),
+    [segments]
+  );
+
+  /** Global playhead in seconds, written by the scene each frame */
+  const playheadRef = useRef(0);
+  /** Pending seek (seconds within the active step), consumed by the scene */
+  const seekRef = useRef<number | null>(null);
+  const [seekVersion, setSeekVersion] = useState(0);
+  const [displayTime, setDisplayTime] = useState(0);
+
+  // The playhead advances inside the render loop; poll it for the footer
+  // instead of re-rendering React at frame rate.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setDisplayTime((previous) => {
+        const next = playheadRef.current;
+        return Math.abs(next - previous) > 0.05 ? next : previous;
+      });
+    }, 200);
+    return () => clearInterval(id);
+  }, []);
+
   const goToStep = useCallback(
     (index: number) => {
       if (index < 0 || index >= stepCount) return;
-      onStepChange?.(index);
+      seekRef.current = 0;
+      playheadRef.current = startTimes[index] ?? 0;
+      setDisplayTime(startTimes[index] ?? 0);
+      if (index === activeStepIndex) {
+        setSeekVersion((version) => version + 1);
+      } else {
+        onStepChange?.(index);
+      }
     },
-    [onStepChange, stepCount]
+    [onStepChange, stepCount, startTimes, activeStepIndex]
+  );
+
+  const handleStepFinished = useCallback(() => {
+    if (clampedIndex < stepCount - 1) {
+      goToStep(clampedIndex + 1);
+    } else {
+      setIsPlaying(false);
+    }
+  }, [clampedIndex, stepCount, goToStep]);
+
+  const onScrub = useCallback(
+    (seconds: number) => {
+      const clamped = Math.max(0, Math.min(seconds, totalSeconds));
+      let index = 0;
+      while (
+        index < stepCount - 1 &&
+        clamped >= (startTimes[index + 1] ?? Number.POSITIVE_INFINITY)
+      ) {
+        index++;
+      }
+      seekRef.current = clamped - (startTimes[index] ?? 0);
+      playheadRef.current = clamped;
+      setDisplayTime(clamped);
+      if (index !== clampedIndex) {
+        onStepChange?.(index);
+      } else {
+        setSeekVersion((version) => version + 1);
+      }
+    },
+    [totalSeconds, stepCount, startTimes, clampedIndex, onStepChange]
   );
 
   return (
@@ -120,6 +195,12 @@ export function AssemblyPlayer({
               highlightedNodeIds={highlightedNodeIds}
               readOnly={readOnly}
               onSelectParts={onSelectParts}
+              segments={segments}
+              startTimes={startTimes}
+              playheadRef={playheadRef}
+              seekRef={seekRef}
+              seekVersion={seekVersion}
+              onStepFinished={handleStepFinished}
             />
           )}
         </AssemblyViewer>
@@ -180,7 +261,17 @@ export function AssemblyPlayer({
         </ControlButton>
         <ControlButton
           aria-label={isPlaying ? "Pause" : "Play"}
-          onClick={() => setIsPlaying((playing) => !playing)}
+          onClick={() => {
+            // Pressing play at the end restarts from the beginning
+            if (
+              !isPlaying &&
+              stepCount > 0 &&
+              playheadRef.current >= totalSeconds - 0.05
+            ) {
+              onScrub(0);
+            }
+            setIsPlaying((playing) => !playing);
+          }}
         >
           {isPlaying ? <PauseIcon /> : <PlayIcon />}
         </ControlButton>
@@ -191,19 +282,39 @@ export function AssemblyPlayer({
         >
           <ChevronRightIcon />
         </ControlButton>
-        <input
-          type="range"
-          aria-label="Step"
-          className="min-w-0 flex-1 accent-primary"
-          min={0}
-          max={Math.max(stepCount - 1, 0)}
-          step={1}
-          value={Math.max(clampedIndex, 0)}
-          disabled={stepCount === 0}
-          onChange={(changeEvent) => goToStep(Number(changeEvent.target.value))}
-        />
+        <div className="relative min-w-0 flex-1">
+          <input
+            type="range"
+            aria-label="Timeline"
+            className="w-full accent-primary"
+            min={0}
+            max={Math.max(totalSeconds, 0.01)}
+            step={0.05}
+            value={Math.min(displayTime, totalSeconds)}
+            disabled={stepCount === 0}
+            onChange={(changeEvent) =>
+              onScrub(Number(changeEvent.target.value))
+            }
+          />
+          {totalSeconds > 0 &&
+            startTimes
+              .slice(1)
+              .map((startTime) => (
+                <span
+                  key={startTime}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 h-2 w-px -translate-y-1/2 bg-muted-foreground/40"
+                  style={{ left: `${(startTime / totalSeconds) * 100}%` }}
+                />
+              ))}
+        </div>
         <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-          {stepCount > 0 ? `${clampedIndex + 1} / ${stepCount}` : "–"}
+          {stepCount > 0
+            ? `${formatTime(Math.min(displayTime, totalSeconds))} / ${formatTime(totalSeconds)}`
+            : "–"}
+        </span>
+        <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+          {stepCount > 0 ? `${clampedIndex + 1} / ${stepCount}` : ""}
         </span>
         <div className="flex items-center rounded-md border border-border">
           <ControlButton
@@ -278,7 +389,13 @@ function AssemblyScene({
   futureMode,
   highlightedNodeIds,
   readOnly,
-  onSelectParts
+  onSelectParts,
+  segments,
+  startTimes,
+  playheadRef,
+  seekRef,
+  seekVersion,
+  onStepFinished
 }: {
   scene: Object3D;
   nodesById: Map<string, Object3D>;
@@ -289,6 +406,18 @@ function AssemblyScene({
   highlightedNodeIds?: string[];
   readOnly: boolean;
   onSelectParts?: (nodeIds: string[]) => void;
+  /** Timeline seconds per step */
+  segments: number[];
+  /** Timeline start (seconds) of each step */
+  startTimes: number[];
+  /** Written each frame with the global playhead (seconds) */
+  playheadRef: React.MutableRefObject<number>;
+  /** Pending seek (seconds within the active step); consumed on apply */
+  seekRef: React.MutableRefObject<number | null>;
+  /** Bumped to re-apply a seek within the same step */
+  seekVersion: number;
+  /** The active step's timeline segment has fully elapsed */
+  onStepFinished?: () => void;
 }) {
   const camera = useThree((state) => state.camera);
   const controls = useThree(
@@ -419,9 +548,22 @@ function AssemblyScene({
   const actionRef = useRef<ReturnType<AnimationMixer["clipAction"]> | null>(
     null
   );
+  /** Seconds elapsed within the active step's timeline segment */
+  const localElapsedRef = useRef(0);
+  const finishedRef = useRef(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: seekVersion intentionally re-applies a pending seek within the same step
   useEffect(() => {
     const step = steps[activeStepIndex];
+
+    // Consume any pending seek; otherwise the step starts at 0
+    const seek = seekRef.current;
+    seekRef.current = null;
+    localElapsedRef.current = seek ?? 0;
+    finishedRef.current = false;
+    playheadRef.current =
+      (startTimes[activeStepIndex] ?? 0) + localElapsedRef.current;
+
     if (!step) return;
 
     const clip = buildStepClip(step, nodesById);
@@ -438,8 +580,13 @@ function AssemblyScene({
       }));
 
     const action = mixer.clipAction(clip);
-    action.setLoop(LoopRepeat, Number.POSITIVE_INFINITY);
+    action.setLoop(LoopOnce, 1);
+    action.clampWhenFinished = true;
     action.play();
+    if (seek !== null) {
+      action.time = Math.min(seek, clip.duration);
+      mixer.update(0);
+    }
     actionRef.current = action;
 
     return () => {
@@ -451,14 +598,39 @@ function AssemblyScene({
         node.quaternion.copy(quaternion);
       }
     };
-  }, [mixer, nodesById, steps, activeStepIndex]);
+    // seekVersion re-applies a seek within the same step
+  }, [
+    mixer,
+    nodesById,
+    steps,
+    activeStepIndex,
+    seekVersion,
+    seekRef,
+    playheadRef,
+    startTimes
+  ]);
 
   useEffect(() => {
     if (actionRef.current) actionRef.current.paused = !isPlaying;
   }, [isPlaying]);
 
   useFrame((_, delta) => {
-    if (isPlaying) mixer.update(delta);
+    if (isPlaying) {
+      mixer.update(delta);
+      localElapsedRef.current += delta;
+    }
+    const segment = segments[activeStepIndex] ?? 0;
+    const clamped = Math.min(localElapsedRef.current, segment);
+    playheadRef.current = (startTimes[activeStepIndex] ?? 0) + clamped;
+    if (
+      isPlaying &&
+      !finishedRef.current &&
+      segment > 0 &&
+      localElapsedRef.current >= segment
+    ) {
+      finishedRef.current = true;
+      onStepFinished?.();
+    }
   });
 
   // --- Camera ----------------------------------------------------------------
@@ -577,6 +749,13 @@ function AssemblyScene({
       onPointerMissed={handlePointerMissed}
     />
   );
+}
+
+function formatTime(seconds: number): string {
+  const safe = Math.max(0, seconds);
+  const minutes = Math.floor(safe / 60);
+  const remainder = Math.floor(safe % 60);
+  return `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
 function findNodeId(object: Object3D): string | null {

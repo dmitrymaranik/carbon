@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  Input,
   Tabs,
   TabsContent,
   TabsList,
@@ -16,7 +17,11 @@ import {
   VStack
 } from "@carbon/react";
 import type { AssemblyGraphIndex } from "@carbon/viewer";
-import { describeStep } from "@carbon/viewer";
+import {
+  describeStep,
+  groupPartNodeIds,
+  stepTimelineSeconds
+} from "@carbon/viewer";
 import type { DragControls } from "framer-motion";
 import { Reorder, useDragControls } from "framer-motion";
 import type { ReactNode } from "react";
@@ -25,6 +30,7 @@ import {
   LuCirclePlus,
   LuEllipsisVertical,
   LuGripVertical,
+  LuSearch,
   LuTrash
 } from "react-icons/lu";
 import { useFetcher, useParams } from "react-router";
@@ -99,6 +105,52 @@ export default function AssemblyInstructionExplorer({
     [steps, graphIndex]
   );
 
+  const [search, setSearch] = useState("");
+  const isSearching = search.trim().length > 0;
+
+  /** stepId → lowercase haystack of title, part names, and fastener spec */
+  const searchText = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const step of steps) {
+      const viewerStep = toViewerStep(step);
+      const partNames = graphIndex
+        ? groupPartNodeIds(viewerStep.partNodeIds, graphIndex)
+            .map((group) => group.name)
+            .join(" ")
+        : "";
+      map.set(
+        step.id,
+        [
+          step.title ?? "",
+          stepTitles.get(step.id) ?? "",
+          partNames,
+          viewerStep.fastener?.spec ?? "",
+          step.instructionText ?? ""
+        ]
+          .join(" ")
+          .toLowerCase()
+      );
+    }
+    return map;
+  }, [steps, graphIndex, stepTitles]);
+
+  const visibleOrder = useMemo(() => {
+    if (!isSearching) return sortOrder;
+    const needle = search.trim().toLowerCase();
+    return sortOrder.filter((stepId) =>
+      searchText.get(stepId)?.includes(needle)
+    );
+  }, [sortOrder, isSearching, search, searchText]);
+
+  const totalSeconds = useMemo(
+    () =>
+      steps.reduce(
+        (sum, step) => sum + stepTimelineSeconds(toViewerStep(step)),
+        0
+      ),
+    [steps]
+  );
+
   const updateSortOrder = useDebounce(
     (updates: Record<string, number>) => {
       const formData = new FormData();
@@ -113,7 +165,7 @@ export default function AssemblyInstructionExplorer({
   );
 
   const onReorder = (newOrder: string[]) => {
-    if (isDisabled) return;
+    if (isDisabled || isSearching) return;
 
     const updates: Record<string, number> = {};
     newOrder.forEach((stepId, index) => {
@@ -151,6 +203,19 @@ export default function AssemblyInstructionExplorer({
           value="steps"
           className="flex min-h-0 flex-1 flex-col justify-between"
         >
+          {steps.length > 0 && (
+            <div className="relative w-full flex-none border-b border-border px-2 py-1.5">
+              <LuSearch className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                aria-label="Search steps"
+                placeholder="Search steps"
+                size="sm"
+                className="pl-7"
+                value={search}
+                onChange={(searchEvent) => setSearch(searchEvent.target.value)}
+              />
+            </div>
+          )}
           <VStack
             className="w-full flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent"
             spacing={0}
@@ -158,23 +223,23 @@ export default function AssemblyInstructionExplorer({
             {steps.length > 0 ? (
               <Reorder.Group
                 axis="y"
-                values={sortOrder}
+                values={visibleOrder}
                 onReorder={onReorder}
                 className="w-full"
-                disabled={isDisabled}
+                disabled={isDisabled || isSearching}
               >
-                {sortOrder.map((stepId, index) => (
+                {visibleOrder.map((stepId) => (
                   <DraggableStepItem
                     key={stepId}
                     stepId={stepId}
-                    isDisabled={isDisabled}
+                    isDisabled={isDisabled || isSearching}
                   >
                     {(dragControls) => (
                       <StepItem
                         step={stepMap[stepId]}
                         title={stepTitles.get(stepId) ?? "Untitled step"}
-                        index={index}
-                        isDisabled={isDisabled}
+                        index={sortOrder.indexOf(stepId)}
+                        isDisabled={isDisabled || isSearching}
                         isSelected={stepId === selectedStepId}
                         dragControls={dragControls}
                         onSelect={() => onSelectStep(stepId)}
@@ -198,8 +263,19 @@ export default function AssemblyInstructionExplorer({
                 )}
               </Empty>
             )}
+            {steps.length > 0 && isSearching && visibleOrder.length === 0 && (
+              <p className="w-full px-4 py-3 text-center text-xs text-muted-foreground">
+                No steps match "{search.trim()}"
+              </p>
+            )}
           </VStack>
           <div className="w-full flex-none border-t border-border p-4">
+            {steps.length > 0 && (
+              <p className="pb-2 text-center text-xs tabular-nums text-muted-foreground">
+                {steps.length} step{steps.length === 1 ? "" : "s"} · est.{" "}
+                {formatDurationSummary(totalSeconds)}
+              </p>
+            )}
             <Button
               className="w-full"
               isDisabled={
@@ -243,6 +319,14 @@ export default function AssemblyInstructionExplorer({
       )}
     </>
   );
+}
+
+function formatDurationSummary(seconds: number): string {
+  const safe = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(safe / 60);
+  const remainder = safe % 60;
+  if (minutes === 0) return `${remainder} sec`;
+  return remainder > 0 ? `${minutes} min ${remainder} sec` : `${minutes} min`;
 }
 
 const stepStatusOrder = ["Todo", "Review", "Done"] as const;
@@ -390,7 +474,7 @@ function StepItem({
       />
       <StepStatusDot
         stepId={step.id}
-        status={step.status}
+        status={step.status ?? "Todo"}
         isDisabled={isDisabled}
       />
       <VStack spacing={0} className="flex-grow">

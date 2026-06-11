@@ -19,7 +19,8 @@ export {
   motionToKeyframes,
   motionTravelDistance,
   type Pose,
-  type StepClipOptions
+  type StepClipOptions,
+  stepTimelineSeconds
 } from "./motion";
 export type {
   AssemblyGraph,

@@ -18,10 +18,17 @@ Plan: `/Users/barbinbrad/.claude/plans/jaunty-launching-blanket.md` (specs: docs
 
 Note: per AGENTS.md, never rebuild the database here — the user runs migrations.
 
-## Next: move assembly into the production module
+## Sprint 2 — remaining feature parity (autonomous)
 
-User request: assembly should live in the production module (nav/permissions),
-but keep the full-screen editor like `x+/job+/` and `x+/procedure+/`.
+- [x] Production-module refactor (done; committed + browser-verified via /test)
+- [ ] Defensive step status (DB without migration shows "undefined"). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] Step search/filter in the explorer (1C.1). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] Step time summary (1A.5): per-step duration display + total. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] Continuous timeline (1B.4): global clock, m:ss display, step ticks. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] Component grouping UI (req §4): context menu on BOM selection → cluster/kit/combination/subassembly, groups section in Parts tab, delete group. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] MES: render step requirements (notes/tools/media) in playback (req §3 display). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] Authorship display (2A.3 partial): created by + last edited in header. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] NOTE: no whole-project typescript checking (user rule) — verify with vitest, biome, and browser tests only.
 
 ## Review
 

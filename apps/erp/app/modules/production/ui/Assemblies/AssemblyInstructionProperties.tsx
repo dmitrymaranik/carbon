@@ -19,7 +19,7 @@ import {
   VStack
 } from "@carbon/react";
 import type { AssemblyGraphIndex } from "@carbon/viewer";
-import { describeStep } from "@carbon/viewer";
+import { describeStep, stepTimelineSeconds } from "@carbon/viewer";
 import { useMemo, useState } from "react";
 import { useFetcher, useParams } from "react-router";
 import { Empty } from "~/components";
@@ -563,11 +563,26 @@ function StepForm({
           )}
         </VStack>
 
-        <Number
-          name="durationSeconds"
-          label="Duration (seconds)"
-          minValue={0}
-        />
+        <VStack spacing={1} className="w-full">
+          <Number
+            name="durationSeconds"
+            label="Duration (seconds)"
+            minValue={0}
+          />
+          <p className="text-xs text-muted-foreground">
+            Timeline length:{" "}
+            {stepTimelineSeconds({
+              motion: motionValidation.success
+                ? motionValidation.data
+                : { type: "none" },
+              durationSeconds: step.durationSeconds
+            }).toFixed(1)}
+            s{" "}
+            {step.durationSeconds
+              ? "(explicit override)"
+              : "(auto from motion — set a duration to override)"}
+          </p>
+        </VStack>
 
         <Submit
           isDisabled={cannotSave || fetcher.state !== "idle"}

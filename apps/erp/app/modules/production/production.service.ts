@@ -3935,6 +3935,7 @@ export function toViewerStep(step: AssemblyInstructionStepRow): AssemblyStep {
     partNodeIds: step.partNodeIds ?? [],
     motion: motion.success ? motion.data : { type: "none" },
     camera: camera.success ? camera.data : null,
-    fastener: fastener.success ? fastener.data : null
+    fastener: fastener.success ? fastener.data : null,
+    durationSeconds: step.durationSeconds
   };
 }

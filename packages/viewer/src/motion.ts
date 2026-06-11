@@ -50,7 +50,25 @@ const INSERTION_SPEED_MM_PER_S = 60;
 const MIN_DURATION_S = 1;
 const MAX_DURATION_S = 4;
 const DEFAULT_SAMPLES_PER_TURN = 4;
-const DEFAULT_HOLD_SECONDS = 0.6;
+export const DEFAULT_HOLD_SECONDS = 0.6;
+/** Timeline length of a process-only (none-motion) step without an explicit duration */
+const NONE_STEP_SECONDS = 2;
+
+/**
+ * Seconds a step occupies on the continuous timeline: the explicit
+ * `durationSeconds` override when set, otherwise the natural animation
+ * length (motion duration + seated hold), or a fixed slot for process-only
+ * steps.
+ */
+export function stepTimelineSeconds(
+  step: Pick<AssemblyStep, "motion" | "durationSeconds">
+): number {
+  if (step.durationSeconds && step.durationSeconds > 0) {
+    return step.durationSeconds;
+  }
+  if (step.motion.type === "none") return NONE_STEP_SECONDS;
+  return motionDuration(step.motion) + DEFAULT_HOLD_SECONDS;
+}
 
 /** Total travel distance (mm) implied by a motion. */
 export function motionTravelDistance(motion: Motion): number {
