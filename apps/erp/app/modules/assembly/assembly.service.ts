@@ -3,7 +3,11 @@ import type { Kysely, KyselyDatabase } from "@carbon/database/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { z } from "zod";
 import type {
+  assemblyGroupTypes,
   assemblyInstructionStatuses,
+  assemblyNoteSeverities,
+  assemblyRequirementTypes,
+  assemblyStepStatuses,
   cameraSchema,
   fastenerSchema,
   motionSchema
@@ -236,4 +240,229 @@ export async function deleteAssemblyInstructionStep(
   id: string
 ) {
   return client.from("assemblyInstructionStep").delete().eq("id", id);
+}
+
+export async function updateAssemblyInstructionStepStatus(
+  client: SupabaseClient<Database>,
+  id: string,
+  data: {
+    status: (typeof assemblyStepStatuses)[number];
+    updatedBy: string;
+  }
+) {
+  return client
+    .from("assemblyInstructionStep")
+    .update({
+      status: data.status,
+      updatedBy: data.updatedBy,
+      updatedAt: new Date().toISOString()
+    })
+    .eq("id", id)
+    .select("id")
+    .single();
+}
+
+export async function getAssemblyRequirements(
+  client: SupabaseClient<Database>,
+  assemblyInstructionId: string
+) {
+  return client
+    .from("assemblyInstructionStepRequirement")
+    .select(
+      "*, item(id, readableIdWithRevision, name), assemblyInstructionStep!inner(assemblyInstructionId)"
+    )
+    .eq("assemblyInstructionStep.assemblyInstructionId", assemblyInstructionId)
+    .order("sortOrder", { ascending: true });
+}
+
+export async function upsertAssemblyRequirement(
+  client: SupabaseClient<Database>,
+  data: {
+    id?: string;
+    assemblyInstructionStepId: string;
+    type: (typeof assemblyRequirementTypes)[number];
+    itemId?: string | null;
+    text?: string | null;
+    filePath?: string | null;
+    severity?: (typeof assemblyNoteSeverities)[number] | null;
+    sortOrder?: number;
+    companyId: string;
+    createdBy: string;
+    updatedBy?: string;
+  }
+) {
+  if (data.id) {
+    return client
+      .from("assemblyInstructionStepRequirement")
+      .update({
+        itemId: data.itemId ?? null,
+        text: data.text ?? null,
+        filePath: data.filePath ?? null,
+        severity: data.severity ?? null,
+        ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
+        updatedBy: data.updatedBy ?? data.createdBy,
+        updatedAt: new Date().toISOString()
+      })
+      .eq("id", data.id)
+      .select("id")
+      .single();
+  }
+
+  return client
+    .from("assemblyInstructionStepRequirement")
+    .insert({
+      assemblyInstructionStepId: data.assemblyInstructionStepId,
+      type: data.type,
+      itemId: data.itemId ?? null,
+      text: data.text ?? null,
+      filePath: data.filePath ?? null,
+      severity: data.severity ?? null,
+      sortOrder: data.sortOrder ?? 1,
+      companyId: data.companyId,
+      createdBy: data.createdBy
+    })
+    .select("id")
+    .single();
+}
+
+export async function deleteAssemblyRequirement(
+  client: SupabaseClient<Database>,
+  id: string
+) {
+  return client
+    .from("assemblyInstructionStepRequirement")
+    .delete()
+    .eq("id", id);
+}
+
+export async function getAssemblyStandardNotes(
+  client: SupabaseClient<Database>,
+  companyId: string
+) {
+  return client
+    .from("assemblyStandardNote")
+    .select("*")
+    .eq("companyId", companyId)
+    .eq("active", true)
+    .order("name");
+}
+
+export async function upsertAssemblyStandardNote(
+  client: SupabaseClient<Database>,
+  data: {
+    id?: string;
+    name: string;
+    text: string;
+    severity: (typeof assemblyNoteSeverities)[number];
+    companyId: string;
+    createdBy: string;
+    updatedBy?: string;
+  }
+) {
+  if (data.id) {
+    return client
+      .from("assemblyStandardNote")
+      .update({
+        name: data.name,
+        text: data.text,
+        severity: data.severity,
+        updatedBy: data.updatedBy ?? data.createdBy,
+        updatedAt: new Date().toISOString()
+      })
+      .eq("id", data.id)
+      .select("id")
+      .single();
+  }
+
+  return client
+    .from("assemblyStandardNote")
+    .insert({
+      name: data.name,
+      text: data.text,
+      severity: data.severity,
+      companyId: data.companyId,
+      createdBy: data.createdBy
+    })
+    .select("id")
+    .single();
+}
+
+export async function deactivateAssemblyStandardNote(
+  client: SupabaseClient<Database>,
+  id: string,
+  updatedBy: string
+) {
+  return client
+    .from("assemblyStandardNote")
+    .update({ active: false, updatedBy, updatedAt: new Date().toISOString() })
+    .eq("id", id)
+    .select("id")
+    .single();
+}
+
+export async function getAssemblyGroups(
+  client: SupabaseClient<Database>,
+  assemblyInstructionId: string
+) {
+  return client
+    .from("assemblyGroup")
+    .select("*")
+    .eq("assemblyInstructionId", assemblyInstructionId)
+    .order("name");
+}
+
+export async function upsertAssemblyGroup(
+  client: SupabaseClient<Database>,
+  data: {
+    id?: string;
+    assemblyInstructionId: string;
+    name: string;
+    type: (typeof assemblyGroupTypes)[number];
+    partNodeIds: string[];
+    partNumber?: string | null;
+    childInstructionId?: string | null;
+    companyId: string;
+    createdBy: string;
+    updatedBy?: string;
+  }
+) {
+  if (data.id) {
+    return client
+      .from("assemblyGroup")
+      .update({
+        name: data.name,
+        partNodeIds: data.partNodeIds,
+        partNumber: data.partNumber ?? null,
+        ...(data.childInstructionId !== undefined
+          ? { childInstructionId: data.childInstructionId }
+          : {}),
+        updatedBy: data.updatedBy ?? data.createdBy,
+        updatedAt: new Date().toISOString()
+      })
+      .eq("id", data.id)
+      .select("id")
+      .single();
+  }
+
+  return client
+    .from("assemblyGroup")
+    .insert({
+      assemblyInstructionId: data.assemblyInstructionId,
+      name: data.name,
+      type: data.type,
+      partNodeIds: data.partNodeIds,
+      partNumber: data.partNumber ?? null,
+      childInstructionId: data.childInstructionId ?? null,
+      companyId: data.companyId,
+      createdBy: data.createdBy
+    })
+    .select("id")
+    .single();
+}
+
+export async function deleteAssemblyGroup(
+  client: SupabaseClient<Database>,
+  id: string
+) {
+  return client.from("assemblyGroup").delete().eq("id", id);
 }

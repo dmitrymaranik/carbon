@@ -1891,6 +1891,87 @@ export type Database = {
           },
         ]
       }
+      assemblyGroup: {
+        Row: {
+          assemblyInstructionId: string
+          childInstructionId: string | null
+          companyId: string
+          createdAt: string
+          createdBy: string
+          id: string
+          name: string
+          partNodeIds: string[]
+          partNumber: string | null
+          type: string
+          updatedAt: string | null
+          updatedBy: string | null
+        }
+        Insert: {
+          assemblyInstructionId: string
+          childInstructionId?: string | null
+          companyId: string
+          createdAt?: string
+          createdBy: string
+          id?: string
+          name: string
+          partNodeIds?: string[]
+          partNumber?: string | null
+          type: string
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Update: {
+          assemblyInstructionId?: string
+          childInstructionId?: string | null
+          companyId?: string
+          createdAt?: string
+          createdBy?: string
+          id?: string
+          name?: string
+          partNodeIds?: string[]
+          partNumber?: string | null
+          type?: string
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assemblyGroup_assemblyInstructionId_fkey"
+            columns: ["assemblyInstructionId"]
+            isOneToOne: false
+            referencedRelation: "assemblyInstruction"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyGroup_childInstructionId_fkey"
+            columns: ["childInstructionId"]
+            isOneToOne: false
+            referencedRelation: "assemblyInstruction"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyGroup_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyGroup_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyGroup_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assemblyInstruction: {
         Row: {
           assemblyPlanJobId: string | null
@@ -2001,6 +2082,7 @@ export type Database = {
           durationSeconds: number | null
           explode: Json | null
           fastener: Json | null
+          groupIds: string[]
           id: string
           instructionText: string | null
           motion: Json
@@ -2009,6 +2091,7 @@ export type Database = {
           partNodeIds: string[]
           planConfidence: string
           sortOrder: number
+          status: string
           title: string | null
           updatedAt: string | null
           updatedBy: string | null
@@ -2023,6 +2106,7 @@ export type Database = {
           durationSeconds?: number | null
           explode?: Json | null
           fastener?: Json | null
+          groupIds?: string[]
           id?: string
           instructionText?: string | null
           motion?: Json
@@ -2031,6 +2115,7 @@ export type Database = {
           partNodeIds?: string[]
           planConfidence?: string
           sortOrder?: number
+          status?: string
           title?: string | null
           updatedAt?: string | null
           updatedBy?: string | null
@@ -2045,6 +2130,7 @@ export type Database = {
           durationSeconds?: number | null
           explode?: Json | null
           fastener?: Json | null
+          groupIds?: string[]
           id?: string
           instructionText?: string | null
           motion?: Json
@@ -2053,6 +2139,7 @@ export type Database = {
           partNodeIds?: string[]
           planConfidence?: string
           sortOrder?: number
+          status?: string
           title?: string | null
           updatedAt?: string | null
           updatedBy?: string | null
@@ -2089,6 +2176,90 @@ export type Database = {
           },
           {
             foreignKeyName: "assemblyInstructionStep_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assemblyInstructionStepRequirement: {
+        Row: {
+          assemblyInstructionStepId: string
+          companyId: string
+          createdAt: string
+          createdBy: string
+          filePath: string | null
+          id: string
+          itemId: string | null
+          severity: string | null
+          sortOrder: number
+          text: string | null
+          type: string
+          updatedAt: string | null
+          updatedBy: string | null
+        }
+        Insert: {
+          assemblyInstructionStepId: string
+          companyId: string
+          createdAt?: string
+          createdBy: string
+          filePath?: string | null
+          id?: string
+          itemId?: string | null
+          severity?: string | null
+          sortOrder?: number
+          text?: string | null
+          type: string
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Update: {
+          assemblyInstructionStepId?: string
+          companyId?: string
+          createdAt?: string
+          createdBy?: string
+          filePath?: string | null
+          id?: string
+          itemId?: string | null
+          severity?: string | null
+          sortOrder?: number
+          text?: string | null
+          type?: string
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assemblyInstructionStepRequirement_stepId_fkey"
+            columns: ["assemblyInstructionStepId"]
+            isOneToOne: false
+            referencedRelation: "assemblyInstructionStep"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStepRequirement_itemId_fkey"
+            columns: ["itemId"]
+            isOneToOne: false
+            referencedRelation: "item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStepRequirement_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStepRequirement_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStepRequirement_updatedBy_fkey"
             columns: ["updatedBy"]
             isOneToOne: false
             referencedRelation: "user"
@@ -2156,6 +2327,67 @@ export type Database = {
             columns: ["modelUploadId"]
             isOneToOne: false
             referencedRelation: "modelUpload"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assemblyStandardNote: {
+        Row: {
+          active: boolean
+          companyId: string
+          createdAt: string
+          createdBy: string
+          id: string
+          name: string
+          severity: string
+          text: string
+          updatedAt: string | null
+          updatedBy: string | null
+        }
+        Insert: {
+          active?: boolean
+          companyId: string
+          createdAt?: string
+          createdBy: string
+          id?: string
+          name: string
+          severity?: string
+          text: string
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Update: {
+          active?: boolean
+          companyId?: string
+          createdAt?: string
+          createdBy?: string
+          id?: string
+          name?: string
+          severity?: string
+          text?: string
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assemblyStandardNote_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyStandardNote_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyStandardNote_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
             referencedColumns: ["id"]
           },
         ]

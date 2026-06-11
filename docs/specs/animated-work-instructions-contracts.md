@@ -72,6 +72,56 @@ both sides).
 
 ### GET /health → `{ "ok": true, "version": "x.y.z" }`
 
+### POST /plan
+
+Computes a collision-free removal motion for every leaf part plus a greedy
+assembly-by-disassembly sequence. Re-tessellates the same STEP source with the
+same nodeId derivation as /convert, so plan.json keys join against graph.json
+and GLB extras.
+
+```jsonc
+// request
+{
+  "jobId": "string",
+  "source": { "url": "https://signed-get-url", "format": "step" },
+  "outputs": { "plan": { "url": "https://signed-put-url" } },
+  "options": {                       // all optional
+    "linearDeflection": 0.1,
+    "angularDeflection": 0.5,
+    "clearance": 0.5,                // mm of required clearance along the path
+    "pathSamples": 60                // collision checks per candidate path
+  }
+}
+// response 200
+{ "ok": true, "partCount": 31, "plannedCount": 29,
+  "stats": { "planMs": 8000, "tiers": { "linear": 25, "l": 4, "unplanned": 2 }, "warnings": [] } }
+// errors: same codes/status mapping as /convert
+```
+
+plan.json (uploaded to outputs.plan.url):
+
+```jsonc
+{
+  "version": 1,
+  "unit": "mm",
+  "sequence": ["nodeId", "..."],     // assembly order = reversed greedy disassembly
+  "parts": {
+    "<nodeId>": {
+      "motion": { /* INSERTION motion per §4 (removal reversed) */ },
+      "confidence": "high" | "low",  // low = L-motion or heuristic fallback
+      "removalDirection": [0, 0, 1], // unit vector, removal sense
+      "blockedBy": ["nodeId"]        // present when no motion found (motion = none)
+    }
+  },
+  "warnings": ["..."]
+}
+```
+
+Editor semantics: when a step's `partNodeIds` change, motion is auto-filled
+from plan.json (single part → its motion; multiple parts → the shared motion
+if all agree, else the first part's motion with confidence low). The manual
+motion form is an override, only shown on demand.
+
 ### Operational limits (service env vars)
 
 - `GEOMETRY_MAX_SOURCE_MB` (default 250) — source download cap
