@@ -22,6 +22,12 @@ export {
   type StepClipOptions,
   stepTimelineSeconds
 } from "./motion";
+export {
+  type AssemblyPlan,
+  type AssemblyPlanPart,
+  type PlannedMotion,
+  planMotionForParts
+} from "./plan";
 export type {
   AssemblyGraph,
   AssemblyGraphNode,

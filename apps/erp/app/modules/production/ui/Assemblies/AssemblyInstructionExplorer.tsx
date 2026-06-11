@@ -31,6 +31,7 @@ import {
   LuEllipsisVertical,
   LuGripVertical,
   LuSearch,
+  LuSparkles,
   LuTrash
 } from "react-icons/lu";
 import { useFetcher, useParams } from "react-router";
@@ -48,6 +49,8 @@ type AssemblyInstructionExplorerProps = {
   selectedStepId: string | null;
   isDisabled: boolean;
   graphIndex: AssemblyGraphIndex | null;
+  /** A successful motion plan exists for the model */
+  hasPlan: boolean;
   onSelectStep: (stepId: string) => void;
   onHighlightParts: (nodeIds: string[]) => void;
   onHideParts: (nodeIds: string[]) => void;
@@ -59,6 +62,7 @@ export default function AssemblyInstructionExplorer({
   selectedStepId,
   isDisabled,
   graphIndex,
+  hasPlan,
   onSelectStep,
   onHighlightParts,
   onHideParts
@@ -70,6 +74,7 @@ export default function AssemblyInstructionExplorer({
 
   const sortOrderFetcher = useFetcher<{ success: boolean }>();
   const newStepFetcher = useFetcher<{ success: boolean; id?: string }>();
+  const generateFetcher = useFetcher<{ success: boolean }>();
 
   const [stepToDelete, setStepToDelete] =
     useState<AssemblyInstructionStepRow | null>(null);
@@ -256,14 +261,36 @@ export default function AssemblyInstructionExplorer({
             ) : (
               <Empty>
                 {permissions.can("update", "production") && (
-                  <Button
-                    isDisabled={isDisabled}
-                    leftIcon={<LuCirclePlus />}
-                    variant="secondary"
-                    onClick={onAddStep}
-                  >
-                    Add Step
-                  </Button>
+                  <VStack spacing={2} className="items-center">
+                    <Button
+                      isDisabled={
+                        isDisabled || generateFetcher.state !== "idle"
+                      }
+                      isLoading={generateFetcher.state !== "idle"}
+                      leftIcon={<LuSparkles />}
+                      onClick={() => {
+                        generateFetcher.submit(new FormData(), {
+                          method: "post",
+                          action: path.to.generateAssemblyInstructionSteps(id)
+                        });
+                      }}
+                    >
+                      Generate Steps
+                    </Button>
+                    <p className="max-w-[220px] text-center text-xs text-muted-foreground">
+                      {hasPlan
+                        ? "Creates draft steps with motions solved from the model's geometry"
+                        : "Runs the motion planner over the model, then creates draft steps"}
+                    </p>
+                    <Button
+                      isDisabled={isDisabled}
+                      leftIcon={<LuCirclePlus />}
+                      variant="secondary"
+                      onClick={onAddStep}
+                    >
+                      Add Step Manually
+                    </Button>
+                  </VStack>
                 )}
               </Empty>
             )}

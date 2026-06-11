@@ -722,6 +722,12 @@ function AssemblyScene({
       const node = nodesById.get(nodeId);
       if (node) box.expandByObject(node);
     }
+    // Frame the whole insertion travel, not just the seated pose, so the
+    // moving part stays in view during playback
+    const startOffset = insertionStartOffset(step.motion);
+    if (startOffset && !box.isEmpty()) {
+      box.union(box.clone().translate(startOffset));
+    }
     frameBox(box);
   }, [steps, activeStepIndex, nodesById, camera, controls, frameBox]);
 
@@ -768,6 +774,35 @@ function AssemblyScene({
       onPointerMissed={handlePointerMissed}
     />
   );
+}
+
+/**
+ * Where a part starts relative to its seated pose for the given insertion
+ * motion (the displaced, pre-insertion offset). Null when the motion does
+ * not translate the part.
+ */
+function insertionStartOffset(motion: AssemblyStep["motion"]): Vector3 | null {
+  switch (motion.type) {
+    case "linear": {
+      const direction = new Vector3(...motion.direction).normalize();
+      return direction.multiplyScalar(-motion.distance);
+    }
+    case "L": {
+      const offset = new Vector3();
+      for (const segment of motion.segments) {
+        const direction = new Vector3(...segment.direction).normalize();
+        offset.addScaledVector(direction, -segment.distance);
+      }
+      return offset;
+    }
+    case "helix": {
+      const axis = new Vector3(...motion.axis).normalize();
+      const travel = motion.approach + motion.pitch * motion.turns;
+      return axis.multiplyScalar(-travel);
+    }
+    default:
+      return null;
+  }
 }
 
 function formatTime(seconds: number): string {

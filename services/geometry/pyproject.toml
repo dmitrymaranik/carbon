@@ -10,10 +10,13 @@ dependencies = [
     "cadquery-ocp==7.9.3.1.1",
     "numpy==2.4.6",
     "pygltflib==1.16.5",
+    "trimesh==4.5.3",
+    "python-fcl>=0.7.0.6",
+    "scipy>=1.14",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.0.3"]
+dev = ["pytest==9.0.3", "manifold3d>=3.0"]
 
 [build-system]
 requires = ["setuptools>=68"]

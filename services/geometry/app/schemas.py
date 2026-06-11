@@ -51,6 +51,39 @@ class ConvertResponse(BaseModel):
     stats: ConvertStats
 
 
+class PlanOutputSpec(BaseModel):
+    plan: OutputTarget
+
+
+class PlanOptions(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    linearDeflection: float = 0.1
+    angularDeflection: float = 0.5
+    clearance: float = 0.5
+    pathSamples: int = 60
+
+
+class PlanRequest(BaseModel):
+    jobId: str
+    source: SourceSpec
+    outputs: PlanOutputSpec
+    options: PlanOptions = PlanOptions()
+
+
+class PlanStats(BaseModel):
+    planMs: int
+    tiers: dict[str, int]
+    warnings: list[str] = []
+
+
+class PlanResponse(BaseModel):
+    ok: Literal[True] = True
+    partCount: int
+    plannedCount: int
+    stats: PlanStats
+
+
 class HealthResponse(BaseModel):
     ok: Literal[True] = True
     version: str

@@ -18,6 +18,7 @@ import {
   getAssemblyInstruction,
   getAssemblyInstructionStepRequirements,
   getAssemblyInstructionSteps,
+  getAssemblyPlanJson,
   getAssemblyStandardNotes,
   toViewerStep,
   upsertAssemblyInstruction
@@ -60,17 +61,23 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     );
   }
 
-  const requirements = await getAssemblyInstructionStepRequirements(
-    client,
-    (steps.data ?? []).map((step) => step.id)
-  );
+  const [requirements, plan] = await Promise.all([
+    getAssemblyInstructionStepRequirements(
+      client,
+      (steps.data ?? []).map((step) => step.id)
+    ),
+    instruction.data.modelUploadId
+      ? getAssemblyPlanJson(client, instruction.data.modelUploadId)
+      : Promise.resolve(null)
+  ]);
 
   return {
     instruction: instruction.data,
     steps: steps.data ?? [],
     requirements: requirements.data ?? [],
     standardNotes: standardNotes.data ?? [],
-    groups: groups.data ?? []
+    groups: groups.data ?? [],
+    plan
   };
 }
 
@@ -119,7 +126,7 @@ export default function AssemblyInstructionRoute() {
   const { id } = useParams();
   if (!id) throw new Error("Could not find id");
 
-  const { instruction, steps, requirements, standardNotes, groups } =
+  const { instruction, steps, requirements, standardNotes, groups, plan } =
     useLoaderData<typeof loader>();
   const permissions = usePermissions();
   const mode = useMode();
@@ -172,6 +179,7 @@ export default function AssemblyInstructionRoute() {
                   selectedStepId={selectedStep?.id ?? null}
                   isDisabled={isDisabled}
                   graphIndex={graphIndex}
+                  hasPlan={Boolean(plan)}
                   onSelectStep={onSelectStep}
                   onHighlightParts={setHighlightedNodeIds}
                   onHideParts={setHiddenNodeIds}
@@ -230,6 +238,7 @@ export default function AssemblyInstructionRoute() {
                   draftPartNodeIds={draftPartNodeIds}
                   isDisabled={isDisabled}
                   graphIndex={graphIndex}
+                  plan={plan}
                   requirements={
                     selectedStep
                       ? requirements.filter(

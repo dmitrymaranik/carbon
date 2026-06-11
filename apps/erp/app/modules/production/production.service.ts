@@ -2,7 +2,7 @@ import type { Database, Json } from "@carbon/database";
 import { fetchAllFromTable } from "@carbon/database";
 import type { Kysely, KyselyDatabase } from "@carbon/database/client";
 import type { JSONContent } from "@carbon/react";
-import type { AssemblyStep } from "@carbon/viewer";
+import type { AssemblyGraph, AssemblyPlan, AssemblyStep } from "@carbon/viewer";
 import { parseDate } from "@internationalized/date";
 import type { FileObject, StorageError } from "@supabase/storage-js";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
@@ -31,6 +31,7 @@ import type {
   jobOperationValidator,
   jobStatus,
   jobValidator,
+  Motion,
   maintenanceDispatchCommentValidator,
   maintenanceDispatchEventValidator,
   maintenanceDispatchItemValidator,
@@ -3962,6 +3963,153 @@ export async function getLatestAssemblyPlan(
     .order("createdAt", { ascending: false })
     .limit(1)
     .maybeSingle();
+}
+
+/** Downloads and parses plan.json for a model's latest successful plan. */
+export async function getAssemblyPlanJson(
+  client: SupabaseClient<Database>,
+  modelUploadId: string
+): Promise<AssemblyPlan | null> {
+  const job = await getLatestAssemblyPlan(client, modelUploadId);
+  if (!job.data?.planPath) return null;
+
+  const file = await client.storage.from("private").download(job.data.planPath);
+  if (file.error || !file.data) return null;
+
+  try {
+    return JSON.parse(await file.data.text()) as AssemblyPlan;
+  } catch {
+    return null;
+  }
+}
+
+type GenerateStepsResult =
+  | { ok: true; created: number }
+  | {
+      ok: false;
+      reason: "no-model" | "no-plan" | "steps-exist" | "error";
+      modelUploadId?: string;
+      message?: string;
+    };
+
+/**
+ * Creates draft steps from the motion plan: walks the planned assembly
+ * sequence, groups consecutive identical parts (same geometry, same motion
+ * shape) into one step, and inserts them in order with status Review. The
+ * author validates/edits the drafts instead of authoring motions by hand.
+ */
+export async function generateAssemblyStepsFromPlan(
+  client: SupabaseClient<Database>,
+  args: { assemblyInstructionId: string; companyId: string; userId: string }
+): Promise<GenerateStepsResult> {
+  const instruction = await client
+    .from("assemblyInstruction")
+    .select("id, modelUploadId, modelUpload(graphPath)")
+    .eq("id", args.assemblyInstructionId)
+    .single();
+  if (instruction.error || !instruction.data.modelUploadId) {
+    return { ok: false, reason: "no-model" };
+  }
+  const modelUploadId = instruction.data.modelUploadId;
+
+  const existing = await client
+    .from("assemblyInstructionStep")
+    .select("id")
+    .eq("assemblyInstructionId", args.assemblyInstructionId)
+    .limit(1);
+  if ((existing.data ?? []).length > 0) {
+    return { ok: false, reason: "steps-exist", modelUploadId };
+  }
+
+  const plan = await getAssemblyPlanJson(client, modelUploadId);
+  if (!plan) {
+    return { ok: false, reason: "no-plan", modelUploadId };
+  }
+
+  // nodeId → geometryHash so identical parts can share a step
+  const hashByNode = new Map<string, string | null>();
+  const graphPath = instruction.data.modelUpload?.graphPath;
+  if (graphPath) {
+    const graphFile = await client.storage.from("private").download(graphPath);
+    if (graphFile.data) {
+      try {
+        const graph = JSON.parse(await graphFile.data.text()) as AssemblyGraph;
+        const visit = (node: AssemblyGraph["root"]) => {
+          hashByNode.set(node.nodeId, node.geometryHash);
+          for (const child of node.children) visit(child);
+        };
+        visit(graph.root);
+      } catch {
+        // grouping degrades to per-part steps
+      }
+    }
+  }
+
+  const motionKey = (motion: Motion): string => {
+    switch (motion.type) {
+      case "linear":
+        return `linear:${motion.direction.join(",")}`;
+      case "L":
+        return `L:${motion.segments
+          .map((segment) => segment.direction.join(","))
+          .join(";")}`;
+      default:
+        return motion.type;
+    }
+  };
+
+  type StepGroup = {
+    partNodeIds: string[];
+    motion: Motion;
+    confidence: "high" | "low";
+    key: string;
+  };
+
+  const groups: StepGroup[] = [];
+  for (const nodeId of plan.sequence) {
+    const part = plan.parts[nodeId];
+    const parsed = motionSchema.safeParse(part?.motion);
+    const motion: Motion = parsed.success ? parsed.data : { type: "none" };
+    const confidence: "high" | "low" =
+      part?.confidence === "high" ? "high" : "low";
+    const key = `${hashByNode.get(nodeId) ?? nodeId}|${motionKey(motion)}|${confidence}`;
+
+    const previous = groups[groups.length - 1];
+    if (previous && previous.key === key) {
+      previous.partNodeIds.push(nodeId);
+      // Identical parts can sit at different depths: animate the longest
+      if (motion.type === "linear" && previous.motion.type === "linear") {
+        previous.motion = {
+          ...previous.motion,
+          distance: Math.max(previous.motion.distance, motion.distance)
+        };
+      }
+      continue;
+    }
+    groups.push({ partNodeIds: [nodeId], motion, confidence, key });
+  }
+
+  if (groups.length === 0) {
+    return { ok: false, reason: "error", message: "The plan has no parts" };
+  }
+
+  const rows = groups.map((group, index) => ({
+    assemblyInstructionId: args.assemblyInstructionId,
+    sortOrder: index + 1,
+    partNodeIds: group.partNodeIds,
+    motion: group.motion as Json,
+    planConfidence: group.confidence,
+    status: "Review" as const,
+    companyId: args.companyId,
+    createdBy: args.userId
+  }));
+
+  const insert = await client.from("assemblyInstructionStep").insert(rows);
+  if (insert.error) {
+    return { ok: false, reason: "error", message: insert.error.message };
+  }
+
+  return { ok: true, created: rows.length };
 }
 
 /**

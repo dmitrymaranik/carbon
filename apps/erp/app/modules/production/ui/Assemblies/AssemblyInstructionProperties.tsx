@@ -18,9 +18,13 @@ import {
   ToggleGroupItem,
   VStack
 } from "@carbon/react";
-import type { AssemblyGraphIndex } from "@carbon/viewer";
-import { describeStep, stepTimelineSeconds } from "@carbon/viewer";
-import { useMemo, useState } from "react";
+import type { AssemblyGraphIndex, AssemblyPlan } from "@carbon/viewer";
+import {
+  describeStep,
+  planMotionForParts,
+  stepTimelineSeconds
+} from "@carbon/viewer";
+import { useEffect, useMemo, useState } from "react";
 import { useFetcher, useParams } from "react-router";
 import { Empty } from "~/components";
 import { usePermissions } from "~/hooks";
@@ -43,6 +47,7 @@ type AssemblyInstructionPropertiesProps = {
   draftPartNodeIds: string[] | null;
   isDisabled: boolean;
   graphIndex: AssemblyGraphIndex | null;
+  plan: AssemblyPlan | null;
   requirements: AssemblyStepRequirement[];
   standardNotes: AssemblyStandardNote[];
 };
@@ -52,6 +57,7 @@ const AssemblyInstructionProperties = ({
   draftPartNodeIds,
   isDisabled,
   graphIndex,
+  plan,
   requirements,
   standardNotes
 }: AssemblyInstructionPropertiesProps) => {
@@ -93,6 +99,7 @@ const AssemblyInstructionProperties = ({
               draftPartNodeIds={draftPartNodeIds}
               isDisabled={isDisabled}
               graphIndex={graphIndex}
+              plan={plan}
             />
           </TabsContent>
           <TabsContent value="bom">
@@ -277,12 +284,14 @@ function StepForm({
   step,
   draftPartNodeIds,
   isDisabled,
-  graphIndex
+  graphIndex,
+  plan
 }: {
   step: AssemblyInstructionStepRow;
   draftPartNodeIds: string[] | null;
   isDisabled: boolean;
   graphIndex: AssemblyGraphIndex | null;
+  plan: AssemblyPlan | null;
 }) {
   const { id: instructionId } = useParams();
   if (!instructionId) throw new Error("Could not find id");
@@ -296,6 +305,22 @@ function StepForm({
   const [fastener, setFastener] = useState<FastenerDraft>(() =>
     makeFastenerDraft(step.fastener)
   );
+  const [autoPlanned, setAutoPlanned] = useState<"high" | "low" | null>(() =>
+    step.planConfidence === "high" || step.planConfidence === "low"
+      ? step.planConfidence
+      : null
+  );
+
+  // When the author assigns parts in the viewer, the motion comes from the
+  // geometry planner automatically — the manual editor is an override
+  useEffect(() => {
+    if (!draftPartNodeIds || draftPartNodeIds.length === 0) return;
+    const planned = planMotionForParts(plan, draftPartNodeIds);
+    if (planned) {
+      setMotion(makeMotionDraft(planned.motion));
+      setAutoPlanned(planned.confidence);
+    }
+  }, [draftPartNodeIds, plan]);
 
   const partNodeIds = draftPartNodeIds ?? step.partNodeIds ?? [];
   const hasUnsavedParts =
@@ -381,6 +406,18 @@ function StepForm({
 
         <VStack spacing={2} className="w-full">
           <Label>Motion</Label>
+          {autoPlanned === "high" && (
+            <p className="text-xs text-emerald-600">
+              Planned automatically from the model's geometry — edit below to
+              override
+            </p>
+          )}
+          {autoPlanned === "low" && (
+            <p className="text-xs text-yellow-600">
+              Planned automatically (low confidence) — verify the animation and
+              adjust if needed
+            </p>
+          )}
           <ToggleGroup
             type="single"
             value={motion.type}

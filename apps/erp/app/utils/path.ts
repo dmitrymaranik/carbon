@@ -477,6 +477,8 @@ export const path = {
       generatePath(`${x}/assembly/${id}/steps/order`),
     assemblyInstructionStepStatus: (id: string, stepId: string) =>
       generatePath(`${x}/assembly/${id}/steps/status/${stepId}`),
+    generateAssemblyInstructionSteps: (id: string) =>
+      generatePath(`${x}/assembly/${id}/steps/generate`),
     newAssemblyStepRequirement: (id: string) =>
       generatePath(`${x}/assembly/${id}/requirements/new`),
     assemblyStepRequirement: (id: string, requirementId: string) =>

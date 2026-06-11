@@ -19,7 +19,15 @@ from fastapi.responses import JSONResponse
 from app import __version__, config
 from app.auth import require_auth
 from app.errors import ConvertError
-from app.schemas import ConvertRequest, ConvertResponse, ConvertStats, HealthResponse
+from app.schemas import (
+    ConvertRequest,
+    ConvertResponse,
+    ConvertStats,
+    HealthResponse,
+    PlanRequest,
+    PlanResponse,
+    PlanStats,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("geometry")
@@ -128,6 +136,67 @@ def convert(request: ConvertRequest) -> ConvertResponse:
         stats=ConvertStats(
             convertMs=convert_ms,
             meshTriangles=result.triangles,
+            warnings=result.warnings,
+        ),
+    )
+
+
+@app.post("/plan", response_model=PlanResponse, dependencies=[Depends(require_auth)])
+def plan(request: PlanRequest) -> PlanResponse:
+    try:
+        from app.plan import plan_step
+    except ImportError as exc:
+        raise ConvertError(
+            "TESSELLATION_FAILED", f"planner dependencies unavailable: {exc}"
+        ) from exc
+
+    for url in (request.source.url, request.outputs.plan.url):
+        _validate_url(url)
+
+    if not _conversion_slots.acquire(blocking=False):
+        raise ConvertError("BUSY", "all conversion slots are in use; retry later", 429)
+
+    started = time.monotonic()
+    logger.info("[%s] plan start: %s", request.jobId, request.source.format)
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="geometry-") as tmp:
+            tmp_dir = Path(tmp)
+            step_path = tmp_dir / "source.step"
+            _download(request.source.url, step_path)
+
+            result = plan_step(
+                step_path,
+                linear_deflection=request.options.linearDeflection,
+                angular_deflection=request.options.angularDeflection,
+                clearance=request.options.clearance,
+                path_samples=request.options.pathSamples,
+                max_parts=config.max_parts(),
+            )
+
+            _upload(
+                request.outputs.plan.url,
+                json.dumps(result.plan).encode("utf-8"),
+                "application/json",
+            )
+    finally:
+        _conversion_slots.release()
+
+    plan_ms = int((time.monotonic() - started) * 1000)
+    logger.info(
+        "[%s] plan done: %d/%d parts planned, tiers=%s, %dms",
+        request.jobId,
+        result.planned_count,
+        result.part_count,
+        result.tiers,
+        plan_ms,
+    )
+    return PlanResponse(
+        partCount=result.part_count,
+        plannedCount=result.planned_count,
+        stats=PlanStats(
+            planMs=plan_ms,
+            tiers=result.tiers,
             warnings=result.warnings,
         ),
     )

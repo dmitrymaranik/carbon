@@ -1,6 +1,6 @@
 {
-  "generated": "2026-06-11T13:23:51.197Z",
-  "totalTools": 1205,
+  "generated": "2026-06-11T14:16:30.976Z",
+  "totalTools": 1207,
   "modules": 15,
   "tools": [
     {
@@ -18111,6 +18111,58 @@
         },
         "required": [
           "modelUploadId"
+        ]
+      }
+    },
+    {
+      "name": "production_getAssemblyPlanJson",
+      "module": "production",
+      "classification": "READ",
+      "description": "get assembly plan json",
+      "paramCount": 1,
+      "serviceParams": [
+        "client",
+        "modelUploadId"
+      ],
+      "injectAuth": [
+        "companyId"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "modelUploadId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "modelUploadId"
+        ]
+      }
+    },
+    {
+      "name": "production_generateAssemblyStepsFromPlan",
+      "module": "production",
+      "classification": "WRITE",
+      "description": "generate assembly steps from plan",
+      "paramCount": 1,
+      "serviceParams": [
+        "client",
+        "args"
+      ],
+      "injectAuth": [
+        "companyId",
+        "createdBy",
+        "updatedBy"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "assemblyInstructionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "assemblyInstructionId"
         ]
       }
     },
