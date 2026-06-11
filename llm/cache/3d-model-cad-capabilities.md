@@ -54,7 +54,12 @@ value or `assembly_*` permission family.
   `feature-parity-plan.md`, `assembly-editor-requirements.md`).
 - `services/geometry/` — Python/FastAPI + OCCT (cadquery-ocp): POST /convert turns a
   STEP file (signed GET URL) into a meshopt-compressed GLB + graph.json (signed PUTs).
-  Stable nodeIds in glTF node extras. Limits via GEOMETRY_* env vars; bearer auth.
+  POST /plan (app/plan.py) runs greedy assembly-by-disassembly motion planning
+  (trimesh + python-fcl collision; tier 1 straight-line along world axes + part
+  principal axis, tier 2 lift-then-slide L motions, leftovers flagged with
+  blockedBy) and uploads plan.json (insertion motions by nodeId + assembly
+  sequence). Stable nodeIds in glTF node extras. Limits via GEOMETRY_* env vars;
+  bearer auth; GEOMETRY_DEV_MODE also disables TLS verification (portless CA).
   CI: `.github/workflows/geometry.yml` (pytest + docker build).
 - `packages/viewer` (@carbon/viewer) — react-three-fiber v8 AssemblyViewer (with drei
   GizmoViewcube) / AssemblyPlayer (ghost/hidden/solid future-parts modes, overlay nav
@@ -91,9 +96,19 @@ value or `assembly_*` permission family.
   tab (gated on production_create). MES: Assembly tab in
   `apps/mes/app/components/JobOperation/` (read-only playback + active step's
   notes/tools/media via requirements in getJobOperationAssembly; serviceRole read).
+- Planner consumption (the core flow — authors never hand-author motions):
+  "Generate Steps" on an empty step list creates draft steps from plan.json
+  (route `$id.steps.generate` → `generateAssemblyStepsFromPlan`: sequence
+  order, consecutive identical parts grouped, planConfidence + status Review;
+  triggers the assembly-plan Inngest pipeline when no plan exists). Assigning
+  parts to a step auto-fills its motion via `planMotionForParts`
+  (@carbon/viewer plan.ts) with a "Planned automatically" indicator; the
+  manual motion form is the override. plan.json loads in the editor loader
+  via `getAssemblyPlanJson`. The step camera frames the full insertion travel.
 - Test playbook: `llm/test-playbooks/assembly-instructions-editor.md`.
-- Not yet done: planner consumption in the editor (plan.json accessor exists:
-  getLatestAssemblyPlan), share link, PDF export, undo/redo, annotations,
-  kit-aware step animation semantics, deploy config for the geometry container,
-  full CRUD e2e for status/requirements/groups (local db missing migrations from
-  20260610183947 onward — needs user rebuild).
+  Verified e2e on the seat-rail seed: convert → plan (22 linear + 1 L + 8
+  flagged) → 27 generated steps → animated 1:01 timeline. Status/requirement/
+  group CRUD verified against a fully migrated local db.
+- Not yet done: share link, PDF export, undo/redo, annotations, kit-aware
+  step animation semantics, helix motions for detected fasteners (planner
+  emits linear for screws), deploy config for the geometry container.
