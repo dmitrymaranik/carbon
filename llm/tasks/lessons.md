@@ -75,3 +75,22 @@ Patterns learned from corrections. Review at the start of each session.
 - Pattern: list route under `x+/<module>+/<plural>.tsx`, full-screen editor
   in a sibling `x+/<singular>+/` tree whose `_layout.tsx` declares the
   parent module. Module folder = permission module = nav module.
+
+## Assembly viewer camera + animation principles (user directives)
+
+- **Constant zoom, rotate-only**: per-step camera transitions keep the
+  standing whole-assembly distance and only rotate toward the action —
+  never re-zoom per step or frame a single small part tightly (the user
+  loses context of "where we are" on the model).
+- **Occlusion-aware angles**: choose the view direction by scoring how many
+  parts block the line of sight to the animated part (seated pose + travel
+  midpoint), not by pure geometry heuristics.
+- **Exaggerate small parts**: bolts/washers get display-only exaggerated
+  travel (>=2.5x their size) so insertions read at assembly scale.
+- **Manual motion editing is a 0.001% escape hatch**: keep it collapsed
+  behind "Edit manually"; motions come from the geometry planner.
+- **Planner correctness beats coverage**: sparse path sampling produced
+  false "removable" results (washer/bolt ordering bugs); cap sample spacing
+  (2mm) rather than sample count. Threaded fasteners need a thread-depth
+  penetration allowance along their own axis because CAD models them as
+  interfering solid cylinders.

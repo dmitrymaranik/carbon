@@ -21,6 +21,7 @@ the viewer contract.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -51,6 +52,21 @@ EXIT_MARGIN_MM = 5.0
 # samples and produce false "removable" results that scramble the sequence.
 MAX_SAMPLE_SPACING_MM = 2.0
 MAX_PATH_SAMPLES = 400
+
+# Threaded fasteners are modeled as solid cylinders in CAD, so they
+# geometrically interfere with their nuts/tapped holes even though they
+# unscrew in reality. Along their own axis they get a thread-depth
+# penetration allowance instead of the strict tolerance.
+THREAD_PENETRATION_MM = 1.5
+FASTENER_NAME_RE = re.compile(
+    r"(?i)\b(screw|bolt|nut|washer|rivet|stud|dowel|pin)\b"
+    r"|\bM\d+(x[\d.]+)?\b"
+    r"|\bDIN ?\d+|\bISO ?\d+"
+)
+
+
+def _is_fastener(part: "_Part") -> bool:
+    return bool(FASTENER_NAME_RE.search(part.name or ""))
 
 WORLD_AXES = [
     np.array([0.0, 0.0, 1.0]),
@@ -340,12 +356,25 @@ def _plan_removal(
     static_min = np.min([p.bbox_min for p in others], axis=0)
     static_max = np.max([p.bbox_max for p in others], axis=0)
 
+    # Named fasteners get a thread-depth allowance along their own axis —
+    # solid-cylinder screw models interfere with their nuts geometrically
+    # even though they unscrew in reality
+    fastener_axis = _symmetry_axis(part) if _is_fastener(part) else None
+
     # Tier 1: straight line
     for direction in _candidate_directions(part):
         travel = _exit_travel(part, static_min, static_max, direction)
         if travel <= 0:
             continue
-        if _path_is_clear(part, manager, direction, 0.0, travel, path_samples):
+        tolerance = (
+            THREAD_PENETRATION_MM
+            if fastener_axis is not None
+            and abs(float(np.dot(direction, fastener_axis))) > 0.99
+            else PENETRATION_TOLERANCE_MM
+        )
+        if _path_is_clear(
+            part, manager, direction, 0.0, travel, path_samples, tolerance
+        ):
             confidence = "low" if part.is_proxy else "high"
             return PlannedPart(
                 node_id=part.node_id,
@@ -449,12 +478,14 @@ def _path_is_clear(
     start: float,
     end: float,
     samples: int,
+    tolerance: float = PENETRATION_TOLERANCE_MM,
     base_offset: np.ndarray | None = None,
 ) -> bool:
     """Densely sample translations of the part and check for collisions.
 
-    Surface contact up to PENETRATION_TOLERANCE_MM is allowed so sliding
-    fits (pins in bores, rails in channels) remain removable.
+    Surface contact up to `tolerance` is allowed so sliding fits (pins in
+    bores, rails in channels) remain removable; threaded fasteners pass a
+    larger thread-depth tolerance along their own axis.
     """
     if end <= start:
         return False
@@ -474,7 +505,7 @@ def _path_is_clear(
         )
         if is_colliding:
             depth = max((contact.depth for contact in contacts), default=0.0)
-            if depth > PENETRATION_TOLERANCE_MM:
+            if depth > tolerance:
                 return False
     return True
 
