@@ -10,10 +10,16 @@ import {
   Badge,
   Input as InputBase,
   Label,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   ToggleGroup,
   ToggleGroupItem,
   VStack
 } from "@carbon/react";
+import type { AssemblyGraphIndex } from "@carbon/viewer";
+import { describeStep } from "@carbon/viewer";
 import { useMemo, useState } from "react";
 import { useFetcher, useParams } from "react-router";
 import { Empty } from "~/components";
@@ -25,17 +31,20 @@ import {
   motionSchema
 } from "../../assembly.models";
 import type { AssemblyInstructionStepRow } from "../../types";
+import AssemblyStepBom from "./AssemblyStepBom";
 
 type AssemblyInstructionPropertiesProps = {
   step: AssemblyInstructionStepRow | null;
   draftPartNodeIds: string[] | null;
   isDisabled: boolean;
+  graphIndex: AssemblyGraphIndex | null;
 };
 
 const AssemblyInstructionProperties = ({
   step,
   draftPartNodeIds,
-  isDisabled
+  isDisabled,
+  graphIndex
 }: AssemblyInstructionPropertiesProps) => {
   return (
     <VStack
@@ -48,12 +57,41 @@ const AssemblyInstructionProperties = ({
         </h3>
       </VStack>
       {step ? (
-        <StepForm
-          key={step.id}
-          step={step}
-          draftPartNodeIds={draftPartNodeIds}
-          isDisabled={isDisabled}
-        />
+        <Tabs defaultValue="details" className="w-full">
+          <TabsList className="w-full">
+            <TabsTrigger className="flex-1" value="details">
+              Details
+            </TabsTrigger>
+            <TabsTrigger className="flex-1" value="bom">
+              BOM
+            </TabsTrigger>
+          </TabsList>
+          {/* forceMount keeps unsaved form edits alive while the BOM tab is open */}
+          <TabsContent
+            value="details"
+            forceMount
+            className="data-[state=inactive]:hidden"
+          >
+            <StepForm
+              key={step.id}
+              step={step}
+              draftPartNodeIds={draftPartNodeIds}
+              isDisabled={isDisabled}
+              graphIndex={graphIndex}
+            />
+          </TabsContent>
+          <TabsContent value="bom">
+            <AssemblyStepBom
+              partNodeIds={draftPartNodeIds ?? step.partNodeIds ?? []}
+              hasUnsavedParts={
+                draftPartNodeIds !== null &&
+                JSON.stringify(draftPartNodeIds) !==
+                  JSON.stringify(step.partNodeIds ?? [])
+              }
+              graphIndex={graphIndex}
+            />
+          </TabsContent>
+        </Tabs>
       ) : (
         <Empty className="border-none">Select a step to edit it</Empty>
       )}
@@ -214,11 +252,13 @@ function serializeFastener(draft: FastenerDraft): unknown {
 function StepForm({
   step,
   draftPartNodeIds,
-  isDisabled
+  isDisabled,
+  graphIndex
 }: {
   step: AssemblyInstructionStepRow;
   draftPartNodeIds: string[] | null;
   isDisabled: boolean;
+  graphIndex: AssemblyGraphIndex | null;
 }) {
   const { id: instructionId } = useParams();
   if (!instructionId) throw new Error("Could not find id");
@@ -259,6 +299,20 @@ function StepForm({
     !motionValidation.success ||
     !fastenerValidation.success;
 
+  // Title shown when the title field is left blank (derived from parts)
+  const derivedTitle = useMemo(
+    () =>
+      describeStep(
+        {
+          title: null,
+          partNodeIds,
+          fastener: fastenerValidation.success ? fastenerValidation.data : null
+        },
+        graphIndex
+      ),
+    [partNodeIds, fastenerValidation, graphIndex]
+  );
+
   return (
     <ValidatedForm
       validator={assemblyInstructionStepValidator}
@@ -280,7 +334,11 @@ function StepForm({
       <Hidden name="motion" value={JSON.stringify(serializedMotion)} />
       <Hidden name="fastener" value={JSON.stringify(serializedFastener)} />
       <VStack spacing={4} className="w-full pb-4">
-        <Input name="title" label="Title" />
+        <Input
+          name="title"
+          label="Title"
+          placeholder={derivedTitle ?? "Untitled step"}
+        />
         <TextArea name="instructionText" label="Instruction" />
 
         <VStack spacing={2} className="w-full">

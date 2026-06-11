@@ -11,6 +11,8 @@ import {
   useDebounce,
   VStack
 } from "@carbon/react";
+import type { AssemblyGraphIndex } from "@carbon/viewer";
+import { describeStep } from "@carbon/viewer";
 import type { DragControls } from "framer-motion";
 import { Reorder, useDragControls } from "framer-motion";
 import type { ReactNode } from "react";
@@ -26,12 +28,14 @@ import { Empty } from "~/components";
 import { ConfirmDelete } from "~/components/Modals";
 import { usePermissions } from "~/hooks";
 import { path } from "~/utils/path";
+import { toViewerStep } from "../../assembly.utils";
 import type { AssemblyInstructionStepRow } from "../../types";
 
 type AssemblyInstructionExplorerProps = {
   steps: AssemblyInstructionStepRow[];
   selectedStepId: string | null;
   isDisabled: boolean;
+  graphIndex: AssemblyGraphIndex | null;
   onSelectStep: (stepId: string) => void;
 };
 
@@ -39,6 +43,7 @@ export default function AssemblyInstructionExplorer({
   steps,
   selectedStepId,
   isDisabled,
+  graphIndex,
   onSelectStep
 }: AssemblyInstructionExplorerProps) {
   const { id } = useParams();
@@ -76,6 +81,17 @@ export default function AssemblyInstructionExplorer({
     [steps]
   );
 
+  const stepTitles = useMemo(
+    () =>
+      new Map(
+        steps.map((step) => [
+          step.id,
+          describeStep(toViewerStep(step), graphIndex) ?? "Untitled step"
+        ])
+      ),
+    [steps, graphIndex]
+  );
+
   const updateSortOrder = useDebounce(
     (updates: Record<string, number>) => {
       const formData = new FormData();
@@ -103,7 +119,6 @@ export default function AssemblyInstructionExplorer({
   const onAddStep = () => {
     const formData = new FormData();
     formData.append("assemblyInstructionId", id);
-    formData.append("title", `Step ${steps.length + 1}`);
     formData.append("motion", JSON.stringify({ type: "none" }));
     newStepFetcher.submit(formData, {
       method: "post",
@@ -138,6 +153,7 @@ export default function AssemblyInstructionExplorer({
                   {(dragControls) => (
                     <StepItem
                       step={stepMap[stepId]}
+                      title={stepTitles.get(stepId) ?? "Untitled step"}
                       index={index}
                       isDisabled={isDisabled}
                       isSelected={stepId === selectedStepId}
@@ -184,15 +200,91 @@ export default function AssemblyInstructionExplorer({
       {stepToDelete && (
         <ConfirmDelete
           action={path.to.deleteAssemblyInstructionStep(id, stepToDelete.id)}
-          name={stepToDelete.title ?? "this step"}
+          name={stepTitles.get(stepToDelete.id) ?? "this step"}
           text={`Are you sure you want to delete the step: ${
-            stepToDelete.title ?? stepToDelete.id
+            stepTitles.get(stepToDelete.id) ?? stepToDelete.id
           }? This cannot be undone.`}
           onCancel={() => setStepToDelete(null)}
           onSubmit={() => setStepToDelete(null)}
         />
       )}
     </>
+  );
+}
+
+const stepStatusOrder = ["Todo", "Review", "Done"] as const;
+type StepStatus = (typeof stepStatusOrder)[number];
+
+const stepStatusStyles: Record<StepStatus, string> = {
+  Todo: "bg-red-500",
+  Review: "bg-yellow-500",
+  Done: "bg-green-500"
+};
+
+function StepStatusDot({
+  stepId,
+  status,
+  isDisabled
+}: {
+  stepId: string;
+  status: StepStatus;
+  isDisabled: boolean;
+}) {
+  const { id } = useParams();
+  if (!id) throw new Error("Could not find id");
+
+  const fetcher = useFetcher<{ success: boolean }>();
+
+  // Optimistic: show the in-flight status while the fetcher is busy
+  const displayed =
+    fetcher.state !== "idle" && fetcher.formData
+      ? ((fetcher.formData.get("status") as StepStatus) ?? status)
+      : status;
+
+  const next =
+    stepStatusOrder[
+      (stepStatusOrder.indexOf(displayed) + 1) % stepStatusOrder.length
+    ];
+
+  const dot = (
+    <span
+      className={cn(
+        "block h-2 w-2 rounded-full",
+        stepStatusStyles[displayed] ?? stepStatusStyles.Todo
+      )}
+    />
+  );
+
+  if (isDisabled) {
+    return (
+      <span
+        role="img"
+        aria-label={`Step status: ${displayed}`}
+        className="shrink-0 px-1"
+      >
+        {dot}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={`Step status: ${displayed}. Click to mark ${next}`}
+      title={`${displayed} — click to mark ${next}`}
+      className="shrink-0 rounded-full p-1 hover:bg-accent"
+      onClick={(e) => {
+        e.stopPropagation();
+        const formData = new FormData();
+        formData.append("status", next);
+        fetcher.submit(formData, {
+          method: "post",
+          action: path.to.assemblyInstructionStepStatus(id, stepId)
+        });
+      }}
+    >
+      {dot}
+    </button>
   );
 }
 
@@ -220,6 +312,7 @@ function DraggableStepItem({
 
 type StepItemProps = {
   step?: AssemblyInstructionStepRow;
+  title: string;
   index: number;
   isDisabled: boolean;
   isSelected: boolean;
@@ -230,6 +323,7 @@ type StepItemProps = {
 
 function StepItem({
   step,
+  title,
   index,
   isDisabled,
   isSelected,
@@ -261,12 +355,17 @@ function StepItem({
         }}
         style={{ touchAction: "none" }}
       />
+      <StepStatusDot
+        stepId={step.id}
+        status={step.status}
+        isDisabled={isDisabled}
+      />
       <VStack spacing={0} className="flex-grow">
         <p className="text-foreground text-sm">
           <span className="text-muted-foreground tabular-nums mr-2">
             {index + 1}.
           </span>
-          {step.title ?? "Untitled step"}
+          {title}
         </p>
         <p className="text-muted-foreground text-xs pl-6">
           {partCount} part{partCount === 1 ? "" : "s"}

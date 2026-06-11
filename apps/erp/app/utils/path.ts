@@ -475,6 +475,8 @@ export const path = {
       generatePath(`${x}/assembly/${id}/steps/delete/${stepId}`),
     assemblyInstructionStepOrder: (id: string) =>
       generatePath(`${x}/assembly/${id}/steps/order`),
+    assemblyInstructionStepStatus: (id: string, stepId: string) =>
+      generatePath(`${x}/assembly/${id}/steps/status/${stepId}`),
     attribute: (id: string) => generatePath(`${x}/people/attribute/${id}`),
     attributes: `${x}/people/attributes`,
     apiIntroduction: `/docs/api/js/intro`,

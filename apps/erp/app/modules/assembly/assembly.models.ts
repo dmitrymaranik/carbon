@@ -9,6 +9,8 @@ export const assemblyInstructionStatuses = [
 
 export const planConfidences = ["high", "low", "manual"] as const;
 
+export const assemblyStepStatuses = ["Todo", "Review", "Done"] as const;
+
 const vector3 = z.tuple([z.number(), z.number(), z.number()]);
 const quaternion = z.tuple([z.number(), z.number(), z.number(), z.number()]);
 
@@ -102,6 +104,10 @@ export const assemblyInstructionStepValidator = z.object({
   camera: jsonField(cameraSchema.nullable().optional()),
   fastener: jsonField(fastenerSchema.nullable().optional()),
   durationSeconds: zfd.numeric(z.number().positive().optional())
+});
+
+export const assemblyInstructionStepStatusValidator = z.object({
+  status: z.enum(assemblyStepStatuses)
 });
 
 export const assemblyInstructionStepOrderValidator = z.object({

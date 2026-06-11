@@ -3,7 +3,8 @@ import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
 import { ClientOnly, Spinner, useMode } from "@carbon/react";
-import { AssemblyPlayer } from "@carbon/viewer";
+import type { AssemblyGraph } from "@carbon/viewer";
+import { AssemblyPlayer, indexAssemblyGraph } from "@carbon/viewer";
 import { msg } from "@lingui/core/macro";
 import { useCallback, useMemo, useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
@@ -118,6 +119,11 @@ export default function AssemblyInstructionRoute() {
   const [draftPartNodeIds, setDraftPartNodeIds] = useState<string[] | null>(
     null
   );
+  const [graph, setGraph] = useState<AssemblyGraph | null>(null);
+  const graphIndex = useMemo(
+    () => (graph ? indexAssemblyGraph(graph) : null),
+    [graph]
+  );
 
   const selectedStep =
     steps.find((step) => step.id === selectedStepId) ?? steps[0] ?? null;
@@ -148,6 +154,7 @@ export default function AssemblyInstructionRoute() {
                   steps={steps}
                   selectedStepId={selectedStep?.id ?? null}
                   isDisabled={isDisabled}
+                  graphIndex={graphIndex}
                   onSelectStep={onSelectStep}
                 />
               }
@@ -176,6 +183,7 @@ export default function AssemblyInstructionRoute() {
                               ? undefined
                               : setDraftPartNodeIds
                           }
+                          onGraphLoaded={setGraph}
                           readOnly={isDisabled}
                           mode={mode}
                           className="h-full"
@@ -200,6 +208,7 @@ export default function AssemblyInstructionRoute() {
                   step={selectedStep}
                   draftPartNodeIds={draftPartNodeIds}
                   isDisabled={isDisabled}
+                  graphIndex={graphIndex}
                 />
               }
             />

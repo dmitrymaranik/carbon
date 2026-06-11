@@ -15,8 +15,10 @@ import {
 } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { AssemblyViewer } from "./AssemblyViewer";
+import { describeStep } from "./describe";
+import { indexAssemblyGraph } from "./graph";
 import { buildStepClip } from "./motion";
-import type { AssemblyStep } from "./types";
+import type { AssemblyGraph, AssemblyStep } from "./types";
 import { useAssembly } from "./useAssembly";
 import { cn } from "./utils";
 
@@ -28,6 +30,8 @@ export type AssemblyPlayerProps = {
   onStepChange?: (index: number) => void;
   /** Click-to-select part nodeIds for the editor (additive with shift held) */
   onSelectParts?: (nodeIds: string[]) => void;
+  /** Surfaces the parsed graph.json once loaded (for BOM/title derivation) */
+  onGraphLoaded?: (graph: AssemblyGraph) => void;
   /** Disables part selection (MES playback) */
   readOnly?: boolean;
   mode?: "dark" | "light";
@@ -49,17 +53,33 @@ export function AssemblyPlayer({
   activeStepIndex,
   onStepChange,
   onSelectParts,
+  onGraphLoaded,
   readOnly = false,
   mode = "dark",
   className
 }: AssemblyPlayerProps) {
-  const { scene, nodesById, isLoading, error } = useAssembly(glbUrl, graphUrl);
+  const { scene, nodesById, graph, isLoading, error } = useAssembly(
+    glbUrl,
+    graphUrl
+  );
   const [isPlaying, setIsPlaying] = useState(true);
   const [xray, setXray] = useState(false);
+
+  useEffect(() => {
+    if (graph) onGraphLoaded?.(graph);
+  }, [graph, onGraphLoaded]);
+
+  const graphIndex = useMemo(
+    () => (graph ? indexAssemblyGraph(graph) : null),
+    [graph]
+  );
 
   const stepCount = steps.length;
   const clampedIndex = Math.min(Math.max(activeStepIndex, 0), stepCount - 1);
   const activeStep = steps[clampedIndex] ?? null;
+  const activeStepTitle = activeStep
+    ? describeStep(activeStep, graphIndex)
+    : null;
 
   const goToStep = useCallback(
     (index: number) => {
@@ -163,11 +183,11 @@ export function AssemblyPlayer({
         </ControlButton>
       </div>
 
-      {activeStep && (activeStep.title || activeStep.instructionText) && (
+      {activeStep && (activeStepTitle || activeStep.instructionText) && (
         <div className="border-t border-border bg-background px-3 py-2">
-          {activeStep.title && (
+          {activeStepTitle && (
             <p className="text-sm font-medium text-foreground">
-              {activeStep.title}
+              {activeStepTitle}
             </p>
           )}
           {activeStep.instructionText && (

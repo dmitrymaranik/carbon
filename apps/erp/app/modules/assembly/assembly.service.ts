@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { z } from "zod";
 import type {
   assemblyInstructionStatuses,
+  assemblyStepStatuses,
   cameraSchema,
   fastenerSchema,
   motionSchema
@@ -214,6 +215,26 @@ async function getNextStepSortOrder(
     .maybeSingle();
 
   return (lastStep.data?.sortOrder ?? 0) + 1;
+}
+
+export async function updateAssemblyInstructionStepStatus(
+  client: SupabaseClient<Database>,
+  id: string,
+  data: {
+    status: (typeof assemblyStepStatuses)[number];
+    updatedBy: string;
+  }
+) {
+  return client
+    .from("assemblyInstructionStep")
+    .update({
+      status: data.status,
+      updatedBy: data.updatedBy,
+      updatedAt: new Date().toISOString()
+    })
+    .eq("id", id)
+    .select("id")
+    .single();
 }
 
 export async function updateAssemblyInstructionStepOrder(

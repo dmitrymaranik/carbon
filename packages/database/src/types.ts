@@ -2009,6 +2009,7 @@ export type Database = {
           partNodeIds: string[]
           planConfidence: string
           sortOrder: number
+          status: Database["public"]["Enums"]["assemblyStepStatus"]
           title: string | null
           updatedAt: string | null
           updatedBy: string | null
@@ -2031,6 +2032,7 @@ export type Database = {
           partNodeIds?: string[]
           planConfidence?: string
           sortOrder?: number
+          status?: Database["public"]["Enums"]["assemblyStepStatus"]
           title?: string | null
           updatedAt?: string | null
           updatedBy?: string | null
@@ -2053,6 +2055,7 @@ export type Database = {
           partNodeIds?: string[]
           planConfidence?: string
           sortOrder?: number
+          status?: Database["public"]["Enums"]["assemblyStepStatus"]
           title?: string | null
           updatedAt?: string | null
           updatedBy?: string | null
@@ -65648,6 +65651,7 @@ export type Database = {
     Enums: {
       accountingPeriodStatus: "Inactive" | "Active"
       assemblyInstructionStatus: "Draft" | "Published" | "Archived"
+      assemblyStepStatus: "Todo" | "Review" | "Done"
       accountType:
         | "Bank"
         | "Cash"
@@ -66925,6 +66929,7 @@ export const Constants = {
     Enums: {
       accountingPeriodStatus: ["Inactive", "Active"],
       assemblyInstructionStatus: ["Draft", "Published", "Archived"],
+      assemblyStepStatus: ["Todo", "Review", "Done"],
       accountType: [
         "Bank",
         "Cash",

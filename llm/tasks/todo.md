@@ -1,41 +1,23 @@
-# Animated Work Instructions — Phase 0 Implementation
+# Assembly Editor Feature Parity — Sprint 1
 
-Plan: `llm/tasks/animated-work-instructions-plan.md`
+Plan: `/Users/barbinbrad/.claude/plans/jaunty-launching-blanket.md` (specs: docs/specs/assembly-editor-requirements.md, docs/specs/feature-parity-plan.md)
 
-- [x] 0.1 Geometry service skeleton (services/geometry). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [x] 0.2 STEP → GLB + graph.json conversion. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [x] 0.3 Meshopt compression pass. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [x] 0.4 Migration: modelUpload processing columns + assemblyPlanJob. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [x] 0.5 Inngest convert pipeline. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [x] 0.6 packages/viewer: AssemblyPlayer. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [x] 0.7 Migration: assemblyInstruction tables + permissions. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [x] 0.8 Assembly module: models + service. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [x] 0.9 ERP routes: instruction editor (manual authoring MVP). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [x] 0.10 MES playback (read-only). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [ ] 0.11 Phase 0 verification (typecheck/lint/tests; browser verify deferred until user rebuilds db). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] WS0: graph foundation — packages/viewer graph.ts + describe.ts + onGraphLoaded prop + route state. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] WS1.1: auto-generated step titles (explorer, player overlay, placeholder, drop "Step N" seed). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] WS1.2: step status — migration, types.ts, validator, service, route, status dot UI. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] WS1.3: Details|BOM tabs in properties panel + AssemblyStepBom. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] WS2.1: ghost default mode (3-way future-parts toggle). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] WS2.2: view cube (GizmoHelper + GizmoViewcube). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] WS2.3: overlay step nav arrows. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] WS3: BOM tree (Parts tab) + highlightedNodeIds composition in viewer. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] WS4.1: requirements migration (assemblyInstructionStepRequirement + assemblyStandardNote). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] WS4.2: database types.ts + validators + service functions. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] WS4.3: requirement + standard-note routes + path helpers + loader. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] WS4.4: AssemblyStepRequirements UI (Tools/Notes/Std Notes/Media) + manage modal. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [ ] Verify: viewer unit tests, per-file typechecks, MES smoke. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
 
-Note: per AGENTS.md, never rebuild the database here — db:build verification waits for the user.
+Note: per AGENTS.md, never rebuild the database here — the user runs migrations.
 
 ## Review
 
-### 0.9 + 0.10 (ERP routes + MES playback)
-
-- ERP: new `x+/assembly+` route folder (list, new modal, three-pane editor,
-  status/delete/step actions) mirroring `x+/procedure+`; UI in
-  `modules/assembly/ui/Assembly/`. Step order route uses Kysely
-  `getDatabaseClient()` (sales-order line-order pattern).
-- `assemblyInstructionStepValidator.partNodeIds` now accepts JSON strings via
-  `jsonField` so the editor can submit (and clear) selections as one hidden
-  field.
-- Nav: `assembly` module added to `useModules` (permission-gated). Part
-  details Model section gets a "Create Assembly Instruction" button when the
-  item's modelUpload `processingStatus === 'Success'`.
-- MES: `getJobOperationAssembly` service + loader wiring; new "Assembly" tab
-  with read-only AssemblyPlayer and large prev/next buttons.
-- Verified: `pnpm typecheck` clean in apps/mes; apps/erp clean except a
-  pre-existing error in `packages/jobs/.../assembly-convert.ts` (committed
-  code, out of scope). Biome clean on all changed files.
-- Before commit: run root `pnpm lingui:check` (new msg`Assembly` etc. are not
-  yet in catalogs). Phase 0 rough edges: `path` motions render but are not
-  editable (switching motion type overwrites them on save); clearing
-  `durationSeconds` does not persist (service skips undefined).
+(to be filled in as workstreams complete)
