@@ -1,4 +1,8 @@
-export { AssemblyPlayer, type AssemblyPlayerProps } from "./AssemblyPlayer";
+export {
+  AssemblyPlayer,
+  type AssemblyPlayerProps,
+  type FuturePartsMode
+} from "./AssemblyPlayer";
 export { AssemblyViewer, type AssemblyViewerProps } from "./AssemblyViewer";
 export { describeStep } from "./describe";
 export {

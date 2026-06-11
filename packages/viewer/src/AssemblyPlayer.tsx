@@ -7,7 +7,7 @@ import {
   LoopRepeat,
   type Material,
   type Mesh,
-  MeshBasicMaterial,
+  type MeshBasicMaterial,
   MeshStandardMaterial,
   type Object3D,
   PerspectiveCamera,
@@ -22,6 +22,9 @@ import type { AssemblyGraph, AssemblyStep } from "./types";
 import { useAssembly } from "./useAssembly";
 import { cn } from "./utils";
 
+/** How parts of steps after the active one are rendered. */
+export type FuturePartsMode = "ghost" | "hidden" | "solid";
+
 export type AssemblyPlayerProps = {
   glbUrl: string;
   graphUrl: string;
@@ -34,6 +37,8 @@ export type AssemblyPlayerProps = {
   onGraphLoaded?: (graph: AssemblyGraph) => void;
   /** Disables part selection (MES playback) */
   readOnly?: boolean;
+  /** Initial render mode for future-step parts */
+  defaultFutureMode?: FuturePartsMode;
   mode?: "dark" | "light";
   className?: string;
 };
@@ -43,7 +48,8 @@ export type AssemblyPlayerProps = {
  * - parts of steps before the active step are shown solid at their final pose
  * - parts of the active step loop their insertion motion (with a short hold
  *   at the seated pose)
- * - parts of later steps are hidden, or ghosted when x-ray is on
+ * - parts of later steps render per the future-parts mode: ghosted at low
+ *   opacity in their original color (default), hidden, or solid
  * - parts in no step (base/fixture parts) are always shown solid
  */
 export function AssemblyPlayer({
@@ -55,6 +61,7 @@ export function AssemblyPlayer({
   onSelectParts,
   onGraphLoaded,
   readOnly = false,
+  defaultFutureMode = "ghost",
   mode = "dark",
   className
 }: AssemblyPlayerProps) {
@@ -63,7 +70,8 @@ export function AssemblyPlayer({
     graphUrl
   );
   const [isPlaying, setIsPlaying] = useState(true);
-  const [xray, setXray] = useState(false);
+  const [futureMode, setFutureMode] =
+    useState<FuturePartsMode>(defaultFutureMode);
 
   useEffect(() => {
     if (graph) onGraphLoaded?.(graph);
@@ -101,7 +109,7 @@ export function AssemblyPlayer({
               steps={steps}
               activeStepIndex={clampedIndex}
               isPlaying={isPlaying}
-              xray={xray}
+              futureMode={futureMode}
               readOnly={readOnly}
               onSelectParts={onSelectParts}
             />
@@ -135,6 +143,22 @@ export function AssemblyPlayer({
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <p className="text-sm text-destructive">{error.message}</p>
           </div>
+        )}
+        {stepCount > 1 && (
+          <>
+            <OverlayNavButton
+              side="left"
+              aria-label="Previous step"
+              disabled={clampedIndex <= 0}
+              onClick={() => goToStep(clampedIndex - 1)}
+            />
+            <OverlayNavButton
+              side="right"
+              aria-label="Next step"
+              disabled={clampedIndex >= stepCount - 1}
+              onClick={() => goToStep(clampedIndex + 1)}
+            />
+          </>
         )}
       </div>
 
@@ -173,14 +197,32 @@ export function AssemblyPlayer({
         <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
           {stepCount > 0 ? `${clampedIndex + 1} / ${stepCount}` : "–"}
         </span>
-        <ControlButton
-          aria-label="Toggle x-ray"
-          aria-pressed={xray}
-          isActive={xray}
-          onClick={() => setXray((value) => !value)}
-        >
-          <XRayIcon />
-        </ControlButton>
+        <div className="flex items-center rounded-md border border-border">
+          <ControlButton
+            aria-label="Show future parts ghosted"
+            aria-pressed={futureMode === "ghost"}
+            isActive={futureMode === "ghost"}
+            onClick={() => setFutureMode("ghost")}
+          >
+            <GhostIcon />
+          </ControlButton>
+          <ControlButton
+            aria-label="Hide future parts"
+            aria-pressed={futureMode === "hidden"}
+            isActive={futureMode === "hidden"}
+            onClick={() => setFutureMode("hidden")}
+          >
+            <HiddenIcon />
+          </ControlButton>
+          <ControlButton
+            aria-label="Show all parts solid"
+            aria-pressed={futureMode === "solid"}
+            isActive={futureMode === "solid"}
+            onClick={() => setFutureMode("solid")}
+          >
+            <SolidIcon />
+          </ControlButton>
+        </div>
       </div>
 
       {activeStep && (activeStepTitle || activeStep.instructionText) && (
@@ -203,15 +245,19 @@ export function AssemblyPlayer({
 
 type PartVisual = "solid" | "active" | "hidden" | "ghost";
 
+type OverrideKind = "ghost" | "highlight" | "selected";
+
 type MaterialOverrides = {
   original: Material | Material[];
-  ghost: Material;
-  highlight: Material | Material[];
-  selected: Material | Material[];
+  /** Clones are created lazily on first use, not per mesh up front */
+  ghost?: Material | Material[];
+  highlight?: Material | Material[];
+  selected?: Material | Material[];
 };
 
 const HIGHLIGHT_COLOR = 0x3b82f6;
 const SELECTED_COLOR = 0xf59e0b;
+const GHOST_OPACITY = 0.3;
 
 function AssemblyScene({
   scene,
@@ -219,7 +265,7 @@ function AssemblyScene({
   steps,
   activeStepIndex,
   isPlaying,
-  xray,
+  futureMode,
   readOnly,
   onSelectParts
 }: {
@@ -228,7 +274,7 @@ function AssemblyScene({
   steps: AssemblyStep[];
   activeStepIndex: number;
   isPlaying: boolean;
-  xray: boolean;
+  futureMode: FuturePartsMode;
   readOnly: boolean;
   onSelectParts?: (nodeIds: string[]) => void;
 }) {
@@ -261,9 +307,9 @@ function AssemblyScene({
     const overrides = overridesRef.current;
     return () => {
       for (const entry of overrides.values()) {
-        disposeMaterials(entry.ghost);
-        disposeMaterials(entry.highlight);
-        disposeMaterials(entry.selected);
+        if (entry.ghost) disposeMaterials(entry.ghost);
+        if (entry.highlight) disposeMaterials(entry.highlight);
+        if (entry.selected) disposeMaterials(entry.selected);
       }
       overrides.clear();
     };
@@ -278,6 +324,7 @@ function AssemblyScene({
     }
     for (const [mesh, entry] of overrides) {
       mesh.material = entry.original;
+      mesh.renderOrder = 0;
     }
 
     const applyVisual = (node: Object3D, visual: PartVisual) => {
@@ -289,8 +336,13 @@ function AssemblyScene({
       node.traverse((object) => {
         if (!(object as Mesh).isMesh) return;
         const mesh = object as Mesh;
-        const entry = getOverrides(mesh, overrides);
-        mesh.material = visual === "ghost" ? entry.ghost : entry.highlight;
+        if (visual === "ghost") {
+          mesh.material = getOverride(mesh, overrides, "ghost");
+          // Draw transparent ghosts after opaque parts to limit sorting artifacts
+          mesh.renderOrder = 1;
+        } else {
+          mesh.material = getOverride(mesh, overrides, "highlight");
+        }
       });
     };
 
@@ -302,9 +354,11 @@ function AssemblyScene({
           ? "solid"
           : stepIndex === activeStepIndex
             ? "active"
-            : xray
+            : futureMode === "ghost"
               ? "ghost"
-              : "hidden";
+              : futureMode === "hidden"
+                ? "hidden"
+                : "solid";
       applyVisual(node, visual);
     }
 
@@ -314,10 +368,10 @@ function AssemblyScene({
       node.traverse((object) => {
         if (!(object as Mesh).isMesh) return;
         const mesh = object as Mesh;
-        mesh.material = getOverrides(mesh, overrides).selected;
+        mesh.material = getOverride(mesh, overrides, "selected");
       });
     }
-  }, [nodesById, stepIndexByNode, activeStepIndex, xray, selectedIds]);
+  }, [nodesById, stepIndexByNode, activeStepIndex, futureMode, selectedIds]);
 
   // --- Animation -----------------------------------------------------------
 
@@ -478,28 +532,43 @@ function findNodeId(object: Object3D): string | null {
   return null;
 }
 
-function getOverrides(
+function getOverride(
   mesh: Mesh,
-  cache: Map<Mesh, MaterialOverrides>
-): MaterialOverrides {
+  cache: Map<Mesh, MaterialOverrides>,
+  kind: OverrideKind
+): Material | Material[] {
   let entry = cache.get(mesh);
   if (!entry) {
-    const original = mesh.material;
-    entry = {
-      original,
-      ghost: new MeshBasicMaterial({
-        color: 0x8c8a8a,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.15,
-        depthWrite: false
-      }),
-      highlight: cloneWithEmissive(original, HIGHLIGHT_COLOR),
-      selected: cloneWithEmissive(original, SELECTED_COLOR)
-    };
+    entry = { original: mesh.material };
     cache.set(mesh, entry);
   }
-  return entry;
+  let override = entry[kind];
+  if (!override) {
+    override =
+      kind === "ghost"
+        ? cloneAsGhost(entry.original)
+        : cloneWithEmissive(
+            entry.original,
+            kind === "highlight" ? HIGHLIGHT_COLOR : SELECTED_COLOR
+          );
+    entry[kind] = override;
+  }
+  return override;
+}
+
+/**
+ * Ghosted future part: the original material at low opacity so parts keep
+ * their color while reading as "not installed yet".
+ */
+function cloneAsGhost(material: Material | Material[]): Material | Material[] {
+  const clone = (source: Material): Material => {
+    const cloned = source.clone();
+    cloned.transparent = true;
+    cloned.opacity = GHOST_OPACITY;
+    cloned.depthWrite = false;
+    return cloned;
+  };
+  return Array.isArray(material) ? material.map(clone) : clone(material);
 }
 
 function cloneWithEmissive(
@@ -525,6 +594,43 @@ function disposeMaterials(material: Material | Material[]) {
   } else {
     material.dispose();
   }
+}
+
+function OverlayNavButton({
+  side,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  side: "left" | "right";
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "absolute top-1/2 z-10 flex h-20 w-12 -translate-y-1/2 items-center justify-center rounded-lg",
+        "text-foreground/30 transition-colors hover:bg-background/40 hover:text-foreground/90",
+        "disabled:pointer-events-none disabled:opacity-0",
+        side === "left" ? "left-2" : "right-2",
+        className
+      )}
+      {...props}
+    >
+      <svg
+        className="h-8 w-8"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d={side === "left" ? "M15 18l-6-6 6-6" : "M9 6l6 6-6 6"}
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
 }
 
 function ControlButton({
@@ -600,7 +706,7 @@ function PauseIcon() {
   );
 }
 
-function XRayIcon() {
+function GhostIcon() {
   return (
     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <rect
@@ -614,6 +720,45 @@ function XRayIcon() {
         strokeDasharray="3 2"
       />
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function HiddenIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0112 5c7 0 10 7 10 7a16.7 16.7 0 01-3.2 4.2M6.6 6.6A16.4 16.4 0 002 12s3 7 10 7a9.9 9.9 0 004.3-1"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9.9 9.9a3 3 0 004.2 4.2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function SolidIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 12l8-4.5M12 12L4 7.5M12 12v9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

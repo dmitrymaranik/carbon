@@ -1,4 +1,4 @@
-import { OrbitControls } from "@react-three/drei";
+import { GizmoHelper, GizmoViewcube, OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import type { ReactNode } from "react";
 import { cn } from "./utils";
@@ -6,6 +6,8 @@ import { cn } from "./utils";
 export type AssemblyViewerProps = {
   children?: ReactNode;
   mode?: "dark" | "light";
+  /** Orientation cube in the top-right with click-to-snap views */
+  viewCube?: boolean;
   className?: string;
 };
 
@@ -17,6 +19,7 @@ export type AssemblyViewerProps = {
 export function AssemblyViewer({
   children,
   mode = "dark",
+  viewCube = true,
   className
 }: AssemblyViewerProps) {
   const isDarkMode = mode === "dark";
@@ -44,6 +47,18 @@ export function AssemblyViewer({
         <directionalLight position={[1, 1, 1]} intensity={1.6} />
         <directionalLight position={[-1, 0.5, -1]} intensity={0.8} />
         <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
+        {viewCube && (
+          // GizmoHelper animates the default OrbitControls on face clicks
+          <GizmoHelper alignment="top-right" margin={[56, 56]}>
+            <GizmoViewcube
+              color={isDarkMode ? "#2a2d33" : "#e4e4e7"}
+              hoverColor={isDarkMode ? "#3f4450" : "#cbd5e1"}
+              textColor={isDarkMode ? "#e4e4e7" : "#27272a"}
+              strokeColor={isDarkMode ? "#71757d" : "#71717a"}
+              opacity={1}
+            />
+          </GizmoHelper>
+        )}
         {children}
       </Canvas>
     </div>
