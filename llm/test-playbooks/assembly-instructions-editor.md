@@ -4,11 +4,27 @@ Last tested: 2026-06-11
 Route: /x/production/assemblies (list), /x/assembly/:id (full-screen editor)
 
 ## Prerequisites
-- A modelUpload with processingStatus = Success (STEP file converted by the
-  geometry service) and at least one assemblyInstruction referencing it.
-- The seat-rail seed data ("Test Instructions", "SEAT-RAIL") works.
+- **Log in as `brad@carbon.ms`** (magic link via the Inbucket mail app at
+  `mail.<prefix>.dev`, mailbox "brad"), NOT the `test@carbon.ms` bypass user:
+  the seat-rail demo data (items, model upload) is seeded into brad's
+  "Carbon" company; test@carbon.ms's "Carbon Development" company is empty,
+  so every item combobox renders only "Create Item".
+- A modelUpload with processingStatus = Success. The seed's conversion can
+  fail if the geometry service was down or hit the portless TLS issue —
+  re-trigger with a POST to the Inngest dev server
+  (`/e/dev`, event `carbon/assembly-convert` with
+  `{modelUploadId, companyId, userId}`).
 - DB must include the assembly migrations (step status enum, requirement
-  tables) or step status shows blank and requirement adds fail.
+  tables, assemblyGroup) or step status shows blank and adds fail.
+
+## Creating an instruction (item-first form)
+- `/x/production/assemblies` → "Add Assembly Instruction".
+- The Item combobox lists only replenishment = Make items (seed:
+  "X000000001 Seat Rail").
+- Selecting an item runs a model check: green "Model: <file> (N parts)"
+  enables Save; an amber "no processed 3D model" warning keeps it disabled.
+- Name is optional (defaults to the item name). Save redirects to
+  `/x/assembly/:id`.
 
 ## Steps
 
