@@ -1,7 +1,9 @@
 import type {
   getAssemblyInstruction,
+  getAssemblyInstructionStepRequirements,
   getAssemblyInstructionSteps,
-  getAssemblyInstructions
+  getAssemblyInstructions,
+  getAssemblyStandardNotes
 } from "./assembly.service";
 
 export type AssemblyInstruction = NonNullable<
@@ -14,4 +16,12 @@ export type AssemblyInstructionListItem = NonNullable<
 
 export type AssemblyInstructionStepRow = NonNullable<
   Awaited<ReturnType<typeof getAssemblyInstructionSteps>>["data"]
+>[number];
+
+export type AssemblyStepRequirement = NonNullable<
+  Awaited<ReturnType<typeof getAssemblyInstructionStepRequirements>>["data"]
+>[number];
+
+export type AssemblyStandardNote = NonNullable<
+  Awaited<ReturnType<typeof getAssemblyStandardNotes>>["data"]
 >[number];

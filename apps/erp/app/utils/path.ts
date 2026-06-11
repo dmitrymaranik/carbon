@@ -477,6 +477,19 @@ export const path = {
       generatePath(`${x}/assembly/${id}/steps/order`),
     assemblyInstructionStepStatus: (id: string, stepId: string) =>
       generatePath(`${x}/assembly/${id}/steps/status/${stepId}`),
+    newAssemblyStepRequirement: (id: string) =>
+      generatePath(`${x}/assembly/${id}/requirements/new`),
+    assemblyStepRequirement: (id: string, requirementId: string) =>
+      generatePath(`${x}/assembly/${id}/requirements/${requirementId}`),
+    deleteAssemblyStepRequirement: (id: string, requirementId: string) =>
+      generatePath(`${x}/assembly/${id}/requirements/delete/${requirementId}`),
+    assemblyStepRequirementOrder: (id: string) =>
+      generatePath(`${x}/assembly/${id}/requirements/order`),
+    newAssemblyStandardNote: `${x}/assembly/standard-notes/new`,
+    assemblyStandardNote: (noteId: string) =>
+      generatePath(`${x}/assembly/standard-notes/${noteId}`),
+    deleteAssemblyStandardNote: (noteId: string) =>
+      generatePath(`${x}/assembly/standard-notes/delete/${noteId}`),
     attribute: (id: string) => generatePath(`${x}/people/attribute/${id}`),
     attributes: `${x}/people/attributes`,
     apiIntroduction: `/docs/api/js/intro`,

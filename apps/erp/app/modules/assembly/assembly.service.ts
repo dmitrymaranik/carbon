@@ -4,6 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { z } from "zod";
 import type {
   assemblyInstructionStatuses,
+  assemblyNoteSeverities,
+  assemblyRequirementTypes,
   assemblyStepStatuses,
   cameraSchema,
   fastenerSchema,
@@ -257,4 +259,197 @@ export async function deleteAssemblyInstructionStep(
   id: string
 ) {
   return client.from("assemblyInstructionStep").delete().eq("id", id);
+}
+
+export async function getAssemblyInstructionStepRequirements(
+  client: SupabaseClient<Database>,
+  stepIds: string[]
+) {
+  if (stepIds.length === 0) {
+    return { data: [], error: null };
+  }
+  return client
+    .from("assemblyInstructionStepRequirement")
+    .select("*, item(id, name, readableIdWithRevision)")
+    .in("stepId", stepIds)
+    .order("sortOrder", { ascending: true });
+}
+
+export async function upsertAssemblyInstructionStepRequirement(
+  client: SupabaseClient<Database>,
+  data: {
+    id?: string;
+    stepId: string;
+    type: (typeof assemblyRequirementTypes)[number];
+    itemId?: string | null;
+    name?: string | null;
+    text?: string | null;
+    severity?: (typeof assemblyNoteSeverities)[number] | null;
+    filePath?: string | null;
+    quantity?: number;
+    sortOrder?: number;
+    companyId: string;
+    createdBy: string;
+    updatedBy?: string;
+  }
+) {
+  // Snapshot the catalog item name so display never needs a join and
+  // survives item deletion
+  let name = data.name ?? null;
+  if (!name && data.itemId) {
+    const item = await client
+      .from("item")
+      .select("name")
+      .eq("id", data.itemId)
+      .single();
+    name = item.data?.name ?? null;
+  }
+
+  if (data.id) {
+    return client
+      .from("assemblyInstructionStepRequirement")
+      .update({
+        itemId: data.itemId ?? null,
+        name,
+        text: data.text ?? null,
+        severity: data.severity ?? null,
+        ...(data.filePath !== undefined ? { filePath: data.filePath } : {}),
+        ...(data.quantity !== undefined ? { quantity: data.quantity } : {}),
+        ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
+        updatedBy: data.updatedBy ?? data.createdBy,
+        updatedAt: new Date().toISOString()
+      })
+      .eq("id", data.id)
+      .select("id")
+      .single();
+  }
+
+  return client
+    .from("assemblyInstructionStepRequirement")
+    .insert({
+      stepId: data.stepId,
+      type: data.type,
+      itemId: data.itemId ?? null,
+      name,
+      text: data.text ?? null,
+      severity: data.severity ?? null,
+      filePath: data.filePath ?? null,
+      quantity: data.quantity ?? 1,
+      sortOrder:
+        data.sortOrder ?? (await getNextRequirementSortOrder(client, data)),
+      companyId: data.companyId,
+      createdBy: data.createdBy
+    })
+    .select("id")
+    .single();
+}
+
+async function getNextRequirementSortOrder(
+  client: SupabaseClient<Database>,
+  data: { stepId: string; type: (typeof assemblyRequirementTypes)[number] }
+) {
+  const last = await client
+    .from("assemblyInstructionStepRequirement")
+    .select("sortOrder")
+    .eq("stepId", data.stepId)
+    .eq("type", data.type)
+    .order("sortOrder", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return (last.data?.sortOrder ?? 0) + 1;
+}
+
+export async function getAssemblyInstructionStepRequirement(
+  client: SupabaseClient<Database>,
+  id: string
+) {
+  return client
+    .from("assemblyInstructionStepRequirement")
+    .select("*")
+    .eq("id", id)
+    .single();
+}
+
+export async function updateAssemblyInstructionStepRequirementOrder(
+  db: Kysely<KyselyDatabase>,
+  updates: { id: string; sortOrder: number; updatedBy: string }[]
+) {
+  return db.transaction().execute(async (trx) => {
+    for (const { id, sortOrder, updatedBy } of updates) {
+      await trx
+        .updateTable("assemblyInstructionStepRequirement")
+        .set({ sortOrder, updatedBy, updatedAt: new Date().toISOString() })
+        .where("id", "=", id)
+        .execute();
+    }
+  });
+}
+
+export async function deleteAssemblyInstructionStepRequirement(
+  client: SupabaseClient<Database>,
+  id: string
+) {
+  return client
+    .from("assemblyInstructionStepRequirement")
+    .delete()
+    .eq("id", id);
+}
+
+export async function getAssemblyStandardNotes(
+  client: SupabaseClient<Database>,
+  companyId: string
+) {
+  return client
+    .from("assemblyStandardNote")
+    .select("*")
+    .eq("companyId", companyId)
+    .order("name", { ascending: true });
+}
+
+export async function upsertAssemblyStandardNote(
+  client: SupabaseClient<Database>,
+  data: {
+    id?: string;
+    name: string;
+    content: string;
+    severity: (typeof assemblyNoteSeverities)[number];
+    companyId: string;
+    createdBy: string;
+    updatedBy?: string;
+  }
+) {
+  if (data.id) {
+    return client
+      .from("assemblyStandardNote")
+      .update({
+        name: data.name,
+        content: data.content,
+        severity: data.severity,
+        updatedBy: data.updatedBy ?? data.createdBy,
+        updatedAt: new Date().toISOString()
+      })
+      .eq("id", data.id)
+      .select("id")
+      .single();
+  }
+
+  return client
+    .from("assemblyStandardNote")
+    .insert({
+      name: data.name,
+      content: data.content,
+      severity: data.severity,
+      companyId: data.companyId,
+      createdBy: data.createdBy
+    })
+    .select("id")
+    .single();
+}
+
+export async function deleteAssemblyStandardNote(
+  client: SupabaseClient<Database>,
+  id: string
+) {
+  return client.from("assemblyStandardNote").delete().eq("id", id);
 }

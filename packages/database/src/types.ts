@@ -2099,6 +2099,96 @@ export type Database = {
           },
         ]
       }
+      assemblyInstructionStepRequirement: {
+        Row: {
+          companyId: string
+          createdAt: string
+          createdBy: string
+          filePath: string | null
+          id: string
+          itemId: string | null
+          name: string | null
+          quantity: number
+          severity: Database["public"]["Enums"]["assemblyNoteSeverity"] | null
+          sortOrder: number
+          stepId: string
+          text: string | null
+          type: Database["public"]["Enums"]["assemblyRequirementType"]
+          updatedAt: string | null
+          updatedBy: string | null
+        }
+        Insert: {
+          companyId: string
+          createdAt?: string
+          createdBy: string
+          filePath?: string | null
+          id?: string
+          itemId?: string | null
+          name?: string | null
+          quantity?: number
+          severity?: Database["public"]["Enums"]["assemblyNoteSeverity"] | null
+          sortOrder?: number
+          stepId: string
+          text?: string | null
+          type: Database["public"]["Enums"]["assemblyRequirementType"]
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Update: {
+          companyId?: string
+          createdAt?: string
+          createdBy?: string
+          filePath?: string | null
+          id?: string
+          itemId?: string | null
+          name?: string | null
+          quantity?: number
+          severity?: Database["public"]["Enums"]["assemblyNoteSeverity"] | null
+          sortOrder?: number
+          stepId?: string
+          text?: string | null
+          type?: Database["public"]["Enums"]["assemblyRequirementType"]
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assemblyInstructionStepRequirement_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStepRequirement_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStepRequirement_itemId_fkey"
+            columns: ["itemId"]
+            isOneToOne: false
+            referencedRelation: "item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStepRequirement_stepId_fkey"
+            columns: ["stepId"]
+            isOneToOne: false
+            referencedRelation: "assemblyInstructionStep"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyInstructionStepRequirement_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assemblyPlanJob: {
         Row: {
           companyId: string
@@ -2159,6 +2249,64 @@ export type Database = {
             columns: ["modelUploadId"]
             isOneToOne: false
             referencedRelation: "modelUpload"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assemblyStandardNote: {
+        Row: {
+          companyId: string
+          content: string
+          createdAt: string
+          createdBy: string
+          id: string
+          name: string
+          severity: Database["public"]["Enums"]["assemblyNoteSeverity"]
+          updatedAt: string | null
+          updatedBy: string | null
+        }
+        Insert: {
+          companyId: string
+          content: string
+          createdAt?: string
+          createdBy: string
+          id?: string
+          name: string
+          severity?: Database["public"]["Enums"]["assemblyNoteSeverity"]
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Update: {
+          companyId?: string
+          content?: string
+          createdAt?: string
+          createdBy?: string
+          id?: string
+          name?: string
+          severity?: Database["public"]["Enums"]["assemblyNoteSeverity"]
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assemblyStandardNote_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyStandardNote_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyStandardNote_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
             referencedColumns: ["id"]
           },
         ]
@@ -65651,6 +65799,13 @@ export type Database = {
     Enums: {
       accountingPeriodStatus: "Inactive" | "Active"
       assemblyInstructionStatus: "Draft" | "Published" | "Archived"
+      assemblyNoteSeverity: "Info" | "Caution" | "Warning"
+      assemblyRequirementType:
+        | "Tool"
+        | "Fixture"
+        | "Consumable"
+        | "Note"
+        | "Media"
       assemblyStepStatus: "Todo" | "Review" | "Done"
       accountType:
         | "Bank"
@@ -66929,6 +67084,14 @@ export const Constants = {
     Enums: {
       accountingPeriodStatus: ["Inactive", "Active"],
       assemblyInstructionStatus: ["Draft", "Published", "Archived"],
+      assemblyNoteSeverity: ["Info", "Caution", "Warning"],
+      assemblyRequirementType: [
+        "Tool",
+        "Fixture",
+        "Consumable",
+        "Note",
+        "Media"
+      ],
       assemblyStepStatus: ["Todo", "Review", "Done"],
       accountType: [
         "Bank",

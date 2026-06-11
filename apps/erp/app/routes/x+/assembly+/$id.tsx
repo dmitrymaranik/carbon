@@ -15,7 +15,9 @@ import { usePermissions } from "~/hooks";
 import {
   assemblyInstructionValidator,
   getAssemblyInstruction,
+  getAssemblyInstructionStepRequirements,
   getAssemblyInstructionSteps,
+  getAssemblyStandardNotes,
   toViewerStep,
   upsertAssemblyInstruction
 } from "~/modules/assembly";
@@ -32,7 +34,7 @@ export const handle: Handle = {
 };
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { client } = await requirePermissions(request, {
+  const { client, companyId } = await requirePermissions(request, {
     view: "assembly",
     role: "employee"
   });
@@ -40,9 +42,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const { id } = params;
   if (!id) throw new Error("Could not find id");
 
-  const [instruction, steps] = await Promise.all([
+  const [instruction, steps, standardNotes] = await Promise.all([
     getAssemblyInstruction(client, id),
-    getAssemblyInstructionSteps(client, id)
+    getAssemblyInstructionSteps(client, id),
+    getAssemblyStandardNotes(client, companyId)
   ]);
 
   if (instruction.error) {
@@ -55,9 +58,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     );
   }
 
+  const requirements = await getAssemblyInstructionStepRequirements(
+    client,
+    (steps.data ?? []).map((step) => step.id)
+  );
+
   return {
     instruction: instruction.data,
-    steps: steps.data ?? []
+    steps: steps.data ?? [],
+    requirements: requirements.data ?? [],
+    standardNotes: standardNotes.data ?? []
   };
 }
 
@@ -106,7 +116,8 @@ export default function AssemblyInstructionRoute() {
   const { id } = useParams();
   if (!id) throw new Error("Could not find id");
 
-  const { instruction, steps } = useLoaderData<typeof loader>();
+  const { instruction, steps, requirements, standardNotes } =
+    useLoaderData<typeof loader>();
   const permissions = usePermissions();
   const mode = useMode();
 
@@ -212,6 +223,15 @@ export default function AssemblyInstructionRoute() {
                   draftPartNodeIds={draftPartNodeIds}
                   isDisabled={isDisabled}
                   graphIndex={graphIndex}
+                  requirements={
+                    selectedStep
+                      ? requirements.filter(
+                          (requirement) =>
+                            requirement.stepId === selectedStep.id
+                        )
+                      : []
+                  }
+                  standardNotes={standardNotes}
                 />
               }
             />

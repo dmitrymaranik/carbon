@@ -30,22 +30,34 @@ import {
   fastenerSchema,
   motionSchema
 } from "../../assembly.models";
-import type { AssemblyInstructionStepRow } from "../../types";
+import type {
+  AssemblyInstructionStepRow,
+  AssemblyStandardNote,
+  AssemblyStepRequirement
+} from "../../types";
 import AssemblyStepBom from "./AssemblyStepBom";
+import AssemblyStepRequirements from "./AssemblyStepRequirements";
 
 type AssemblyInstructionPropertiesProps = {
   step: AssemblyInstructionStepRow | null;
   draftPartNodeIds: string[] | null;
   isDisabled: boolean;
   graphIndex: AssemblyGraphIndex | null;
+  requirements: AssemblyStepRequirement[];
+  standardNotes: AssemblyStandardNote[];
 };
 
 const AssemblyInstructionProperties = ({
   step,
   draftPartNodeIds,
   isDisabled,
-  graphIndex
+  graphIndex,
+  requirements,
+  standardNotes
 }: AssemblyInstructionPropertiesProps) => {
+  const { id: instructionId } = useParams();
+  if (!instructionId) throw new Error("Could not find id");
+
   return (
     <VStack
       spacing={4}
@@ -64,6 +76,9 @@ const AssemblyInstructionProperties = ({
             </TabsTrigger>
             <TabsTrigger className="flex-1" value="bom">
               BOM
+            </TabsTrigger>
+            <TabsTrigger className="flex-1" value="requirements">
+              Requirements
             </TabsTrigger>
           </TabsList>
           {/* forceMount keeps unsaved form edits alive while the BOM tab is open */}
@@ -89,6 +104,15 @@ const AssemblyInstructionProperties = ({
                   JSON.stringify(step.partNodeIds ?? [])
               }
               graphIndex={graphIndex}
+            />
+          </TabsContent>
+          <TabsContent value="requirements">
+            <AssemblyStepRequirements
+              stepId={step.id}
+              instructionId={instructionId}
+              requirements={requirements}
+              standardNotes={standardNotes}
+              isDisabled={isDisabled}
             />
           </TabsContent>
         </Tabs>
