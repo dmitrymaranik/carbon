@@ -1,4 +1,5 @@
 export { assemblyConvertFunction } from "./assembly-convert";
+export { assemblyPlanFunction } from "./assembly-plan";
 export { modelThumbnailFunction } from "./model-thumbnail";
 export { onboardFunction } from "./onboard";
 export { postTransactionFunction } from "./post-transaction";

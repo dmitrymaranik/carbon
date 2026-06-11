@@ -466,3 +466,23 @@ export async function deleteAssemblyGroup(
 ) {
   return client.from("assemblyGroup").delete().eq("id", id);
 }
+
+/**
+ * Latest successful motion plan for a model. The editor uses plan.json to
+ * auto-fill step motions and to generate draft step sequences.
+ */
+export async function getLatestAssemblyPlan(
+  client: SupabaseClient<Database>,
+  modelUploadId: string
+) {
+  return client
+    .from("assemblyPlanJob")
+    .select("id, planPath, stats, createdAt")
+    .eq("modelUploadId", modelUploadId)
+    .eq("kind", "plan")
+    .eq("status", "Success")
+    .not("planPath", "is", null)
+    .order("createdAt", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
