@@ -43,26 +43,46 @@ Older cache references to Trigger.dev are stale.
 `apps/mes/app/components/JobOperation/JobOperation.tsx` renders a "Model" tab on
 `/x/operation/:operationId` using ModelViewer when the job/item has a model.
 
-## Assembly module (animated work instructions) — Phase 0 shipped
+## Assembly instructions (animated work instructions) — production module
+
+Part of the **production** module (not a standalone module): permissions are
+`production_<view|create|update|delete>`; there is no `Assembly` module enum
+value or `assembly_*` permission family.
 
 - Docs: `llm/research/animated-work-instructions.md`,
-  `docs/specs/animated-work-instructions-design.md` (+ `-contracts.md`, `-plan.md`).
+  `docs/specs/animated-work-instructions-design.md` (+ `-contracts.md`, `-plan.md`,
+  `feature-parity-plan.md`, `assembly-editor-requirements.md`).
 - `services/geometry/` — Python/FastAPI + OCCT (cadquery-ocp): POST /convert turns a
   STEP file (signed GET URL) into a meshopt-compressed GLB + graph.json (signed PUTs).
   Stable nodeIds in glTF node extras. Limits via GEOMETRY_* env vars; bearer auth.
   CI: `.github/workflows/geometry.yml` (pytest + docker build).
-- `packages/viewer` (@carbon/viewer) — react-three-fiber v8 AssemblyViewer/AssemblyPlayer;
-  runtime keyframes from step motion JSON (linear/L/helix/path/none); React 18 peers.
-- DB: `assemblyPlanJob`, `assemblyInstruction`, `assemblyInstructionStep`;
+- `packages/viewer` (@carbon/viewer) — react-three-fiber v8 AssemblyViewer (with drei
+  GizmoViewcube) / AssemblyPlayer (ghost/hidden/solid future-parts modes, overlay nav
+  arrows, `onGraphLoaded`, `highlightedNodeIds`); runtime keyframes from step motion
+  JSON (linear/L/helix/path/none); pure utils `graph.ts` (indexAssemblyGraph,
+  groupPartNodeIds) and `describe.ts` (describeStep auto-titles) with vitest coverage.
+- DB: `assemblyPlanJob`, `assemblyInstruction`, `assemblyInstructionStep` (status enum
+  Todo/Review/Done, groupIds), `assemblyInstructionStepRequirement`
+  (Tool/Fixture/Consumable/Note/Media; itemId FK → item, name snapshot, severity),
+  `assemblyStandardNote`, `assemblyGroup` (Cluster/Kit/Combination/Subassembly);
   `modelUpload` gained processingStatus/glbPath/graphPath/partCount/processedAt;
-  `jobOperation`/`methodOperation` gained nullable `assemblyInstructionId`;
-  new `Assembly` value in `module` enum + `assembly_*` permissions.
-- Inngest `assembly-convert` (`packages/jobs/src/inngest/functions/tasks/assembly-convert.ts`)
-  auto-triggers from `apps/erp/app/routes/api+/model.upload.ts` for .step/.stp uploads.
+  `jobOperation`/`methodOperation` gained nullable `assemblyInstructionId`.
+  All RLS via `get_companies_with_employee_permission('production_*')`.
+- Inngest `assembly-convert` + `assembly-plan` (`packages/jobs/src/inngest/functions/tasks/`)
+  auto-trigger from `apps/erp/app/routes/api+/model.upload.ts` for .step/.stp uploads.
   Env: GEOMETRY_SERVICE_URL / GEOMETRY_SERVICE_API_KEY (packages/env).
-- ERP: `apps/erp/app/modules/assembly/` + routes `x+/assembly+/` (list, new, three-pane
-  editor with step CRUD/reorder/publish); nav entry in `useModules`; create-instruction
-  button on item Model tab. MES: Assembly tab in
-  `apps/mes/app/components/JobOperation/` (read-only playback).
-- Not yet done: planner (Phase 1), deploy config for the geometry container,
-  browser-level e2e verification (needs local db rebuild).
+- ERP: code lives in `apps/erp/app/modules/production/` (assembly functions appended to
+  production.service.ts/.models.ts/types.ts; UI in `ui/Assemblies/`). List route
+  `x+/production+/assemblies.tsx` (/x/production/assemblies) + `assemblies.new.tsx`,
+  mirroring procedures; full-screen editor stays at `x+/assembly+/$id`
+  (/x/assembly/:id) with `handle.module: "production"` like `x+/procedure+/`.
+  Editor: Steps|Parts left tabs (BOM tree with click-to-highlight),
+  Details|BOM|Requirements right tabs (tools/notes/standard notes/media),
+  auto-generated step titles, status dots. Nav: "Assemblies" in the Production
+  sidebar group (useProductionSubmodules); create-instruction button on item Model
+  tab (gated on production_create). MES: Assembly tab in
+  `apps/mes/app/components/JobOperation/` (read-only playback; production_view RLS).
+- Not yet done: planner consumption in the editor (plan.json accessor exists:
+  getLatestAssemblyPlan), continuous timeline, grouping UI (assemblyGroup schema +
+  service exist, no UI), deploy config for the geometry container, browser e2e
+  verification (needs local db rebuild).
