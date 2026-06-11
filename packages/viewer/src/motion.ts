@@ -109,6 +109,52 @@ export function motionDuration(motion: Motion): number {
   );
 }
 
+/** Parts smaller than this fraction of the assembly count as "small". */
+const SMALL_PART_FRACTION = 0.15;
+/** Small parts travel at least this many times their own size. */
+const SMALL_PART_TRAVEL_FACTOR = 2.5;
+
+/**
+ * Exaggerates the travel of small parts (bolts, washers, pins) so their
+ * insertion reads clearly at assembly scale. Display-only: the stored plan
+ * keeps the geometric travel. Returns the motion unchanged for large parts
+ * or non-translating motions.
+ */
+export function exaggerateMotion(
+  motion: Motion,
+  partDiagonal: number,
+  assemblyDiagonal: number
+): Motion {
+  if (partDiagonal <= 0 || assemblyDiagonal <= 0) return motion;
+  if (partDiagonal >= assemblyDiagonal * SMALL_PART_FRACTION) return motion;
+
+  const minTravel = partDiagonal * SMALL_PART_TRAVEL_FACTOR;
+
+  switch (motion.type) {
+    case "linear": {
+      if (motion.distance >= minTravel) return motion;
+      return { ...motion, distance: minTravel };
+    }
+    case "L": {
+      const total = motion.segments.reduce(
+        (sum, segment) => sum + Math.abs(segment.distance),
+        0
+      );
+      if (total >= minTravel || total <= 0) return motion;
+      const scale = minTravel / total;
+      return {
+        ...motion,
+        segments: motion.segments.map((segment) => ({
+          ...segment,
+          distance: segment.distance * scale
+        }))
+      };
+    }
+    default:
+      return motion;
+  }
+}
+
 /**
  * Builds world-space insertion keyframes for a part whose final (seated)
  * world pose is `basePose`. The last keyframe always equals `basePose`.

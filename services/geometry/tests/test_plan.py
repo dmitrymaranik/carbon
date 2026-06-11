@@ -106,3 +106,32 @@ def test_enclosed_box_is_unplanned_with_blockers():
     assert tiers["unplanned"] >= 1
     assert by_id["inner"].motion["type"] == "none"
     assert "shell" in by_id["inner"].blocked_by
+
+
+def test_rod_prefers_its_own_axis():
+    # A rod lying diagonally on a plate can exit +Z too, but its natural
+    # removal is along its own axis — fasteners must leave through their bores
+    base = _box_part("base", (200, 200, 10), (0, 0, 5))
+    rod = trimesh.creation.cylinder(radius=4, height=80)
+    # lay the rod along +X, floating just above the plate
+    rotate = trimesh.transformations.rotation_matrix(np.pi / 2, (0, 1, 0))
+    rod.apply_transform(rotate)
+    rod.apply_translation((0, 0, 14.2))
+    bounds = rod.bounds
+    rod_part = _Part(
+        node_id="rod",
+        name="rod",
+        mesh=rod,
+        bbox_min=np.array(bounds[0]),
+        bbox_max=np.array(bounds[1]),
+        is_proxy=False,
+    )
+
+    planned, _sequence, _tiers = _plan([base, rod_part])
+    by_id = {entry.node_id: entry for entry in planned}
+
+    direction = by_id["rod"].removal_direction
+    assert direction is not None
+    # Axis-first: the rod leaves along ±X (its own axis), not +Z
+    assert abs(direction[0]) == 1.0
+    assert direction[1] == 0.0 and direction[2] == 0.0

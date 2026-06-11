@@ -17,7 +17,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { AssemblyViewer } from "./AssemblyViewer";
 import { describeStep } from "./describe";
 import { indexAssemblyGraph } from "./graph";
-import { buildStepClip, stepTimelineSeconds } from "./motion";
+import { buildStepClip, exaggerateMotion, stepTimelineSeconds } from "./motion";
 import type { AssemblyGraph, AssemblyStep } from "./types";
 import { useAssembly } from "./useAssembly";
 import { cn } from "./utils";
@@ -103,8 +103,58 @@ export function AssemblyPlayer({
     ? describeStep(activeStep, graphIndex)
     : null;
 
+  // Small parts (bolts, washers) get exaggerated travel so their insertion
+  // reads clearly at assembly scale — display only, the data is untouched
+  const displaySteps = useMemo(() => {
+    if (!graphIndex) return steps;
+    const root = graphIndex.graph.root.bbox;
+    const assemblyDiagonal = Math.hypot(
+      root.max[0] - root.min[0],
+      root.max[1] - root.min[1],
+      root.max[2] - root.min[2]
+    );
+    return steps.map((step) => {
+      let minBox: [number, number, number] | null = null;
+      let maxBox: [number, number, number] | null = null;
+      for (const nodeId of step.partNodeIds) {
+        const node = graphIndex.nodesById.get(nodeId);
+        if (!node) continue;
+        if (!minBox || !maxBox) {
+          minBox = [...node.bbox.min];
+          maxBox = [...node.bbox.max];
+        } else {
+          for (let axis = 0; axis < 3; axis++) {
+            minBox[axis] = Math.min(
+              minBox[axis] ?? 0,
+              node.bbox.min[axis] ?? 0
+            );
+            maxBox[axis] = Math.max(
+              maxBox[axis] ?? 0,
+              node.bbox.max[axis] ?? 0
+            );
+          }
+        }
+      }
+      if (!minBox || !maxBox) return step;
+      const partDiagonal = Math.hypot(
+        maxBox[0] - minBox[0],
+        maxBox[1] - minBox[1],
+        maxBox[2] - minBox[2]
+      );
+      const motion = exaggerateMotion(
+        step.motion,
+        partDiagonal,
+        assemblyDiagonal
+      );
+      return motion === step.motion ? step : { ...step, motion };
+    });
+  }, [steps, graphIndex]);
+
   // --- Continuous timeline ---------------------------------------------
-  const segments = useMemo(() => steps.map(stepTimelineSeconds), [steps]);
+  const segments = useMemo(
+    () => displaySteps.map(stepTimelineSeconds),
+    [displaySteps]
+  );
   const startTimes = useMemo(() => {
     let elapsed = 0;
     return segments.map((segment) => {
@@ -191,7 +241,7 @@ export function AssemblyPlayer({
               key={scene.uuid}
               scene={scene}
               nodesById={nodesById}
-              steps={steps}
+              steps={displaySteps}
               activeStepIndex={clampedIndex}
               isPlaying={isPlaying}
               futureMode={futureMode}
@@ -199,6 +249,7 @@ export function AssemblyPlayer({
               hiddenNodeIds={hiddenNodeIds}
               readOnly={readOnly}
               onSelectParts={onSelectParts}
+              assemblyBounds={graphIndex?.graph.root.bbox ?? null}
               segments={segments}
               startTimes={startTimes}
               playheadRef={playheadRef}
@@ -395,6 +446,7 @@ function AssemblyScene({
   hiddenNodeIds,
   readOnly,
   onSelectParts,
+  assemblyBounds,
   segments,
   startTimes,
   playheadRef,
@@ -412,6 +464,8 @@ function AssemblyScene({
   hiddenNodeIds?: string[];
   readOnly: boolean;
   onSelectParts?: (nodeIds: string[]) => void;
+  /** Seated world bounds from graph.json (stable under animation) */
+  assemblyBounds: { min: number[]; max: number[] } | null;
   /** Timeline seconds per step */
   segments: number[];
   /** Timeline start (seconds) of each step */
@@ -676,13 +730,79 @@ function AssemblyScene({
     [camera, controls]
   );
 
+  // The whole-assembly bounds set the standing camera distance: per-step
+  // transitions keep this distance and only rotate, so the zoom never jumps
+  // between steps. Prefer the graph's seated bounds — measuring the scene
+  // mid-animation would inflate the box with displaced parts.
+  const getAssemblyBox = useCallback((): Box3 => {
+    if (assemblyBounds) {
+      return new Box3(
+        new Vector3(...(assemblyBounds.min as [number, number, number])),
+        new Vector3(...(assemblyBounds.max as [number, number, number]))
+      );
+    }
+    return new Box3().setFromObject(scene);
+  }, [assemblyBounds, scene]);
+
   // Initial framing of the whole assembly
   const framedSceneRef = useRef<Object3D | null>(null);
   useEffect(() => {
     if (!controls || framedSceneRef.current === scene) return;
     framedSceneRef.current = scene;
-    frameBox(new Box3().setFromObject(scene));
-  }, [scene, controls, frameBox]);
+    frameBox(getAssemblyBox());
+  }, [scene, controls, frameBox, getAssemblyBox]);
+
+  // Smoothly approached camera pose (per-step rotation); cleared when the
+  // user grabs the controls so they can take over mid-transition
+  const desiredPoseRef = useRef<{ position: Vector3; target: Vector3 } | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (!controls) return;
+    const cancel = () => {
+      desiredPoseRef.current = null;
+    };
+    controls.addEventListener("start", cancel);
+    return () => controls.removeEventListener("start", cancel);
+  }, [controls]);
+
+  // Transition by orbiting around the target — the view direction rotates
+  // and the distance eases, so the model never leaves the frame the way a
+  // straight-line position lerp can.
+  useFrame((_, delta) => {
+    const desired = desiredPoseRef.current;
+    if (!desired || !controls) return;
+    const alpha = 1 - Math.exp(-delta * 4);
+
+    controls.target.lerp(desired.target, alpha);
+
+    const currentOffset = camera.position.clone().sub(controls.target);
+    const desiredOffset = desired.position.clone().sub(desired.target);
+    const currentDistance = Math.max(currentOffset.length(), 1e-3);
+    const desiredDistance = Math.max(desiredOffset.length(), 1e-3);
+
+    const direction = currentOffset
+      .divideScalar(currentDistance)
+      .lerp(desiredOffset.divideScalar(desiredDistance), alpha);
+    if (direction.lengthSq() < 1e-6) {
+      // Opposite directions: nudge through the desired side
+      direction.copy(desired.position).sub(desired.target).normalize();
+    }
+    direction.normalize();
+
+    const distance =
+      currentDistance + (desiredDistance - currentDistance) * alpha;
+    camera.position.copy(controls.target).addScaledVector(direction, distance);
+    controls.update();
+
+    if (
+      camera.position.distanceToSquared(desired.position) < 0.01 &&
+      controls.target.distanceToSquared(desired.target) < 0.01
+    ) {
+      desiredPoseRef.current = null;
+    }
+  });
 
   // Frame externally highlighted parts when the highlight changes (but keep
   // the user's camera when the highlight is cleared)
@@ -701,35 +821,95 @@ function AssemblyScene({
     frameBox(box);
   }, [highlightedSet, nodesById, frameBox]);
 
-  // Per-step camera: explicit pose wins; otherwise auto-frame active parts
+  // Per-step camera: explicit pose wins; otherwise keep the standing
+  // whole-assembly distance and rotate so the active part and its travel
+  // face the camera — the zoom stays steady, only the view angle changes.
   useEffect(() => {
     const step = steps[activeStepIndex];
     if (!step || !controls) return;
 
     if (step.camera) {
-      camera.position.set(...step.camera.position);
+      desiredPoseRef.current = {
+        position: new Vector3(...step.camera.position),
+        target: new Vector3(...step.camera.target)
+      };
       if (camera instanceof PerspectiveCamera) {
         camera.fov = step.camera.fov;
         camera.updateProjectionMatrix();
       }
-      controls.target.set(...step.camera.target);
-      controls.update();
       return;
     }
 
-    const box = new Box3();
+    if (step.partNodeIds.length === 0) return;
+
+    const assemblyBox = getAssemblyBox();
+    if (assemblyBox.isEmpty()) return;
+    const center = assemblyBox.getCenter(new Vector3());
+    const radius = assemblyBox.getSize(new Vector3()).length() / 2;
+    const fov = camera instanceof PerspectiveCamera ? camera.fov : 45;
+    const distance = Math.max(
+      (radius / Math.tan(((fov / 2) * Math.PI) / 180)) * 1.25,
+      radius * 2
+    );
+
+    const partBox = new Box3();
     for (const nodeId of step.partNodeIds) {
       const node = nodesById.get(nodeId);
-      if (node) box.expandByObject(node);
+      if (node) partBox.expandByObject(node);
     }
-    // Frame the whole insertion travel, not just the seated pose, so the
-    // moving part stays in view during playback
-    const startOffset = insertionStartOffset(step.motion);
-    if (startOffset && !box.isEmpty()) {
-      box.union(box.clone().translate(startOffset));
+    if (partBox.isEmpty()) return;
+    const partCenter = partBox.getCenter(new Vector3());
+
+    // Look from the part's side of the assembly, slightly elevated
+    let viewDirection = partCenter.clone().sub(center);
+    if (viewDirection.lengthSq() < 1e-6) {
+      viewDirection = camera.position.clone().sub(controls.target);
     }
-    frameBox(box);
-  }, [steps, activeStepIndex, nodesById, camera, controls, frameBox]);
+    viewDirection.normalize().addScaledVector(camera.up, 0.45).normalize();
+
+    // Never look straight along the up axis — orbit controls roll wildly
+    // at the poles and the view loses its horizon
+    if (Math.abs(viewDirection.dot(camera.up)) > 0.85) {
+      const horizontal = camera.position.clone().sub(controls.target);
+      horizontal.addScaledVector(camera.up, -horizontal.dot(camera.up));
+      if (horizontal.lengthSq() < 1e-6) horizontal.set(1, 0, 0);
+      viewDirection.addScaledVector(horizontal.normalize(), 0.7).normalize();
+    }
+
+    // If the insertion travel runs toward/away from this view, swing
+    // sideways so the motion reads as movement across the screen
+    const motionDirection = insertionDirection(step.motion);
+    if (
+      motionDirection &&
+      Math.abs(viewDirection.dot(motionDirection)) > 0.85
+    ) {
+      const side = new Vector3().crossVectors(motionDirection, camera.up);
+      if (side.lengthSq() < 1e-6) {
+        side.crossVectors(motionDirection, new Vector3(1, 0, 0));
+      }
+      side.normalize();
+      const outward = partCenter.clone().sub(center);
+      if (side.dot(outward) < 0) side.negate();
+      viewDirection.multiplyScalar(0.5).addScaledVector(side, 0.85).normalize();
+    }
+
+    // Blend with the current view so consecutive steps on opposite sides
+    // turn the camera gently instead of whipping it around the model
+    const currentDirection = camera.position.clone().sub(controls.target);
+    if (currentDirection.lengthSq() > 1e-6) {
+      viewDirection
+        .multiplyScalar(0.65)
+        .addScaledVector(currentDirection.normalize(), 0.35)
+        .normalize();
+    }
+
+    // Aim mostly at the assembly (context) with a nudge toward the part
+    const target = center.clone().lerp(partCenter, 0.3);
+    desiredPoseRef.current = {
+      position: target.clone().addScaledVector(viewDirection, distance),
+      target
+    };
+  }, [steps, activeStepIndex, nodesById, camera, controls, getAssemblyBox]);
 
   // --- Selection -------------------------------------------------------------
 
@@ -777,29 +957,27 @@ function AssemblyScene({
 }
 
 /**
- * Where a part starts relative to its seated pose for the given insertion
- * motion (the displaced, pre-insertion offset). Null when the motion does
- * not translate the part.
+ * The dominant travel direction of an insertion motion (used to pick a
+ * camera angle where the motion reads laterally). Null for motions that
+ * do not translate the part.
  */
-function insertionStartOffset(motion: AssemblyStep["motion"]): Vector3 | null {
+function insertionDirection(motion: AssemblyStep["motion"]): Vector3 | null {
   switch (motion.type) {
-    case "linear": {
-      const direction = new Vector3(...motion.direction).normalize();
-      return direction.multiplyScalar(-motion.distance);
-    }
+    case "linear":
+      return new Vector3(...motion.direction).normalize();
     case "L": {
-      const offset = new Vector3();
+      let longest: Vector3 | null = null;
+      let longestDistance = 0;
       for (const segment of motion.segments) {
-        const direction = new Vector3(...segment.direction).normalize();
-        offset.addScaledVector(direction, -segment.distance);
+        if (Math.abs(segment.distance) > longestDistance) {
+          longestDistance = Math.abs(segment.distance);
+          longest = new Vector3(...segment.direction);
+        }
       }
-      return offset;
+      return longest ? longest.normalize() : null;
     }
-    case "helix": {
-      const axis = new Vector3(...motion.axis).normalize();
-      const travel = motion.approach + motion.pitch * motion.turns;
-      return axis.multiplyScalar(-travel);
-    }
+    case "helix":
+      return new Vector3(...motion.axis).normalize();
     default:
       return null;
   }

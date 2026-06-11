@@ -185,21 +185,58 @@ def _collect_world_parts(root: AssemblyNode, trimesh_mod) -> list[_Part]:
     return parts
 
 
-def _candidate_directions(part: _Part) -> list[np.ndarray]:
-    """World axes plus the part's principal axis (both senses)."""
-    candidates = list(WORLD_AXES)
+def _symmetry_axis(part: _Part) -> np.ndarray | None:
+    """The natural insertion axis of a fastener-like part.
+
+    Rod-like parts (bolts, pins, screws: one dominant extent) insert along
+    their long axis; disc-like parts (washers, nuts: two equal dominant
+    extents) insert along their normal. Returns None for parts without a
+    clear axis.
+    """
     vertices = np.asarray(part.mesh.vertices)
-    if len(vertices) >= 3:
-        centered = vertices - vertices.mean(axis=0)
-        # Principal direction of the vertex cloud
-        _, _, basis = np.linalg.svd(centered, full_matrices=False)
-        principal = basis[0]
-        norm = np.linalg.norm(principal)
-        if norm > 1e-9:
-            principal = principal / norm
-            for sense in (principal, -principal):
-                if all(abs(float(np.dot(sense, c))) < 0.99 for c in WORLD_AXES):
-                    candidates.append(sense)
+    if len(vertices) < 3:
+        return None
+    centered = vertices - vertices.mean(axis=0)
+    try:
+        singular, basis = np.linalg.svd(centered, full_matrices=False)[1:]
+    except np.linalg.LinAlgError:  # pragma: no cover - degenerate mesh
+        return None
+    s1, s2, s3 = (float(s) for s in singular[:3])
+    if s2 <= 1e-9:
+        return None
+    if s1 > 1.4 * s2:
+        axis = basis[0]  # rod: dominant extent is the axis
+    elif s3 > 1e-9 and s2 > 1.4 * s3 and s1 < 1.25 * s2:
+        axis = basis[2]  # disc: the normal is the smallest extent
+    else:
+        return None
+    norm = np.linalg.norm(axis)
+    if norm <= 1e-9:
+        return None
+    axis = axis / norm
+    # Snap near-axis-aligned directions to clean world axes (stable plan
+    # output, and identical fasteners group on exact direction matches)
+    for world in WORLD_AXES:
+        if float(np.dot(axis, world)) > 0.999:
+            return world.copy()
+    return axis
+
+
+def _candidate_directions(part: _Part) -> list[np.ndarray]:
+    """Removal directions to try, most natural first.
+
+    A part's own symmetry axis comes before the world axes so fasteners
+    leave through their own bores instead of the first free world
+    direction.
+    """
+    candidates: list[np.ndarray] = []
+    axis = _symmetry_axis(part)
+    if axis is not None:
+        candidates.extend([axis, -axis])
+
+    for world in WORLD_AXES:
+        if all(abs(float(np.dot(world, c))) < 0.99 for c in candidates):
+            candidates.append(world)
     return candidates
 
 
@@ -371,22 +408,29 @@ def _exit_travel(
 ) -> float:
     """Distance along `direction` until the part's AABB clears the assembly.
 
-    Never returns zero: a part that already sits outside the static bounds
-    along the direction still gets an animation travel of its own extent
-    (plus margin) so the insertion reads clearly.
+    AABB overlap ends as soon as the boxes separate on ANY axis, so the
+    travel is the cheapest separating axis (taking the max instead explodes
+    for directions with tiny components). Capped at the assembly diagonal
+    and never zero: a part already outside still gets an animation travel
+    of its own extent plus margin so the insertion reads clearly.
     """
     bbox_min = part.bbox_min + (base_offset if base_offset is not None else 0.0)
     bbox_max = part.bbox_max + (base_offset if base_offset is not None else 0.0)
 
-    travel = 0.0
+    travel = float("inf")
     for axis in range(3):
         d = float(direction[axis])
-        if d > 1e-9:
+        if d > 1e-6:
             needed = float(static_max[axis] - bbox_min[axis])
-            travel = max(travel, needed / d)
-        elif d < -1e-9:
+            travel = min(travel, max(needed / d, 0.0))
+        elif d < -1e-6:
             needed = float(bbox_max[axis] - static_min[axis])
-            travel = max(travel, needed / -d)
+            travel = min(travel, max(needed / -d, 0.0))
+    if travel == float("inf"):
+        travel = 0.0
+
+    diagonal = float(np.linalg.norm(static_max - static_min))
+    travel = min(travel, diagonal * 1.5)
 
     extent = float(np.abs(direction) @ (bbox_max - bbox_min))
     return max(travel, extent) + EXIT_MARGIN_MM

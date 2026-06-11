@@ -13,6 +13,7 @@ export {
 } from "./graph";
 export {
   buildStepClip,
+  exaggerateMotion,
   type MotionKeyframeOptions,
   type MotionKeyframes,
   motionDuration,

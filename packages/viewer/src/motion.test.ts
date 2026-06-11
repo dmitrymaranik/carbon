@@ -9,6 +9,7 @@ import {
 import { describe, expect, it } from "vitest";
 import {
   buildStepClip,
+  exaggerateMotion,
   type MotionKeyframes,
   motionDuration,
   motionToKeyframes,
@@ -464,5 +465,56 @@ describe("buildStepClip", () => {
     expect(part.position.x).toBeCloseTo(-4);
     expect(part.position.y).toBeCloseTo(2);
     expect(part.position.z).toBeCloseTo(3);
+  });
+});
+
+describe("exaggerateMotion", () => {
+  const lift = {
+    type: "linear",
+    direction: [0, 0, -1] as [number, number, number],
+    distance: 15
+  } as const;
+
+  it("stretches small-part travel to a readable distance", () => {
+    // 20mm bolt in a 1000mm assembly travels at least 2.5x its size
+    const result = exaggerateMotion(lift, 20, 1000);
+    expect(result.type).toBe("linear");
+    if (result.type === "linear") {
+      expect(result.distance).toBe(50);
+    }
+  });
+
+  it("leaves large parts unchanged", () => {
+    expect(exaggerateMotion(lift, 400, 1000)).toBe(lift);
+  });
+
+  it("leaves already-long travels unchanged", () => {
+    const long = { ...lift, distance: 200 };
+    expect(exaggerateMotion(long, 20, 1000)).toBe(long);
+  });
+
+  it("scales L segments proportionally", () => {
+    const motion = {
+      type: "L",
+      segments: [
+        { direction: [1, 0, 0] as [number, number, number], distance: 6 },
+        { direction: [0, 0, -1] as [number, number, number], distance: 4 }
+      ]
+    } as const;
+    const result = exaggerateMotion(motion, 20, 1000);
+    if (result.type === "L") {
+      const total = result.segments.reduce((sum, s) => sum + s.distance, 0);
+      expect(total).toBeCloseTo(50);
+      expect(
+        result.segments[0]!.distance / result.segments[1]!.distance
+      ).toBeCloseTo(6 / 4);
+    } else {
+      throw new Error("expected L motion");
+    }
+  });
+
+  it("does not exaggerate none motions", () => {
+    const none = { type: "none" } as const;
+    expect(exaggerateMotion(none, 20, 1000)).toBe(none);
   });
 });

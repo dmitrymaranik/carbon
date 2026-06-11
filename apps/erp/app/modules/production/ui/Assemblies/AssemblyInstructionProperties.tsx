@@ -8,6 +8,8 @@ import {
 } from "@carbon/form";
 import {
   Badge,
+  Button,
+  HStack,
   Input as InputBase,
   Label,
   Tabs,
@@ -211,6 +213,25 @@ function makeMotionDraft(motion: unknown): MotionDraft {
   }
 }
 
+function describeMotionDraft(draft: MotionDraft): string {
+  switch (draft.type) {
+    case "linear":
+      return `Linear insertion · ${draft.distance} mm`;
+    case "L": {
+      const total = draft.segments.reduce(
+        (sum, segment) =>
+          sum + Math.abs(globalThis.Number(segment.distance) || 0),
+        0
+      );
+      return `Two-segment insertion · ${total} mm`;
+    }
+    case "helix":
+      return `Threaded insertion (helix) · ${draft.turns} turns`;
+    default:
+      return "No part movement (process step)";
+  }
+}
+
 function parseVec3(vector: Vec3Draft): [number, number, number] {
   return [
     globalThis.Number(vector[0]),
@@ -310,6 +331,9 @@ function StepForm({
       ? step.planConfidence
       : null
   );
+  // Motions come from the planner; hand-editing vectors is the rare escape
+  // hatch, so the manual editor stays collapsed by default
+  const [showMotionEditor, setShowMotionEditor] = useState(false);
 
   // When the author assigns parts in the viewer, the motion comes from the
   // geometry planner automatically — the manual editor is an override
@@ -332,6 +356,11 @@ function StepForm({
     () => motionSchema.safeParse(serializedMotion),
     [serializedMotion]
   );
+
+  // Surface the manual editor when the current motion is invalid
+  useEffect(() => {
+    if (!motionValidation.success) setShowMotionEditor(true);
+  }, [motionValidation.success]);
 
   const serializedFastener = useMemo(
     () => serializeFastener(fastener),
@@ -405,11 +434,24 @@ function StepForm({
         </VStack>
 
         <VStack spacing={2} className="w-full">
-          <Label>Motion</Label>
+          <HStack className="w-full justify-between">
+            <Label>Motion</Label>
+            {!isDisabled && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMotionEditor((show) => !show)}
+              >
+                {showMotionEditor ? "Hide manual editor" : "Edit manually"}
+              </Button>
+            )}
+          </HStack>
+          <p className="text-sm text-foreground">
+            {describeMotionDraft(motion)}
+          </p>
           {autoPlanned === "high" && (
             <p className="text-xs text-emerald-600">
-              Planned automatically from the model's geometry — edit below to
-              override
+              Planned automatically from the model's geometry
             </p>
           )}
           {autoPlanned === "low" && (
@@ -418,26 +460,28 @@ function StepForm({
               adjust if needed
             </p>
           )}
-          <ToggleGroup
-            type="single"
-            value={motion.type}
-            onValueChange={(value) => {
-              if (value && !isDisabled) {
-                setMotion((previous) => ({
-                  ...previous,
-                  type: value as MotionType
-                }));
-              }
-            }}
-            className="justify-start"
-          >
-            <ToggleGroupItem value="none">None</ToggleGroupItem>
-            <ToggleGroupItem value="linear">Linear</ToggleGroupItem>
-            <ToggleGroupItem value="L">L</ToggleGroupItem>
-            <ToggleGroupItem value="helix">Helix</ToggleGroupItem>
-          </ToggleGroup>
+          {showMotionEditor && (
+            <ToggleGroup
+              type="single"
+              value={motion.type}
+              onValueChange={(value) => {
+                if (value && !isDisabled) {
+                  setMotion((previous) => ({
+                    ...previous,
+                    type: value as MotionType
+                  }));
+                }
+              }}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="none">None</ToggleGroupItem>
+              <ToggleGroupItem value="linear">Linear</ToggleGroupItem>
+              <ToggleGroupItem value="L">L</ToggleGroupItem>
+              <ToggleGroupItem value="helix">Helix</ToggleGroupItem>
+            </ToggleGroup>
+          )}
 
-          {motion.type === "linear" && (
+          {showMotionEditor && motion.type === "linear" && (
             <>
               <VectorInput
                 label="Direction"
@@ -458,7 +502,8 @@ function StepForm({
             </>
           )}
 
-          {motion.type === "L" &&
+          {showMotionEditor &&
+            motion.type === "L" &&
             motion.segments.map((segment, index) => (
               <VStack
                 key={`segment-${index}`}
@@ -495,7 +540,7 @@ function StepForm({
               </VStack>
             ))}
 
-          {motion.type === "helix" && (
+          {showMotionEditor && motion.type === "helix" && (
             <>
               <VectorInput
                 label="Axis"
