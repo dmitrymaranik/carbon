@@ -8,6 +8,10 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   useDebounce,
   VStack
 } from "@carbon/react";
@@ -30,6 +34,7 @@ import { usePermissions } from "~/hooks";
 import { path } from "~/utils/path";
 import { toViewerStep } from "../../assembly.utils";
 import type { AssemblyInstructionStepRow } from "../../types";
+import AssemblyBomTree from "./AssemblyBomTree";
 
 type AssemblyInstructionExplorerProps = {
   steps: AssemblyInstructionStepRow[];
@@ -37,6 +42,7 @@ type AssemblyInstructionExplorerProps = {
   isDisabled: boolean;
   graphIndex: AssemblyGraphIndex | null;
   onSelectStep: (stepId: string) => void;
+  onHighlightParts: (nodeIds: string[]) => void;
 };
 
 export default function AssemblyInstructionExplorer({
@@ -44,7 +50,8 @@ export default function AssemblyInstructionExplorer({
   selectedStepId,
   isDisabled,
   graphIndex,
-  onSelectStep
+  onSelectStep,
+  onHighlightParts
 }: AssemblyInstructionExplorerProps) {
   const { id } = useParams();
   if (!id) throw new Error("Could not find id");
@@ -128,75 +135,101 @@ export default function AssemblyInstructionExplorer({
 
   return (
     <>
-      <VStack
-        className="w-full h-[calc(100dvh-99px)] justify-between"
-        spacing={0}
+      <Tabs
+        defaultValue="steps"
+        className="flex h-[calc(100dvh-99px)] w-full flex-col"
       >
-        <VStack
-          className="w-full flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent"
-          spacing={0}
+        <TabsList className="w-full flex-none">
+          <TabsTrigger className="flex-1" value="steps">
+            Steps
+          </TabsTrigger>
+          <TabsTrigger className="flex-1" value="parts">
+            Parts
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent
+          value="steps"
+          className="flex min-h-0 flex-1 flex-col justify-between"
         >
-          {steps.length > 0 ? (
-            <Reorder.Group
-              axis="y"
-              values={sortOrder}
-              onReorder={onReorder}
-              className="w-full"
-              disabled={isDisabled}
-            >
-              {sortOrder.map((stepId, index) => (
-                <DraggableStepItem
-                  key={stepId}
-                  stepId={stepId}
-                  isDisabled={isDisabled}
-                >
-                  {(dragControls) => (
-                    <StepItem
-                      step={stepMap[stepId]}
-                      title={stepTitles.get(stepId) ?? "Untitled step"}
-                      index={index}
-                      isDisabled={isDisabled}
-                      isSelected={stepId === selectedStepId}
-                      dragControls={dragControls}
-                      onSelect={() => onSelectStep(stepId)}
-                      onDelete={() => setStepToDelete(stepMap[stepId])}
-                    />
-                  )}
-                </DraggableStepItem>
-              ))}
-            </Reorder.Group>
-          ) : (
-            <Empty>
-              {permissions.can("update", "assembly") && (
-                <Button
-                  isDisabled={isDisabled}
-                  leftIcon={<LuCirclePlus />}
-                  variant="secondary"
-                  onClick={onAddStep}
-                >
-                  Add Step
-                </Button>
-              )}
-            </Empty>
-          )}
-        </VStack>
-        <div className="w-full flex-none border-t border-border p-4">
-          <Button
-            className="w-full"
-            isDisabled={
-              isDisabled ||
-              !permissions.can("update", "assembly") ||
-              newStepFetcher.state !== "idle"
-            }
-            isLoading={newStepFetcher.state !== "idle"}
-            leftIcon={<LuCirclePlus />}
-            variant="secondary"
-            onClick={onAddStep}
+          <VStack
+            className="w-full flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-accent"
+            spacing={0}
           >
-            Add Step
-          </Button>
-        </div>
-      </VStack>
+            {steps.length > 0 ? (
+              <Reorder.Group
+                axis="y"
+                values={sortOrder}
+                onReorder={onReorder}
+                className="w-full"
+                disabled={isDisabled}
+              >
+                {sortOrder.map((stepId, index) => (
+                  <DraggableStepItem
+                    key={stepId}
+                    stepId={stepId}
+                    isDisabled={isDisabled}
+                  >
+                    {(dragControls) => (
+                      <StepItem
+                        step={stepMap[stepId]}
+                        title={stepTitles.get(stepId) ?? "Untitled step"}
+                        index={index}
+                        isDisabled={isDisabled}
+                        isSelected={stepId === selectedStepId}
+                        dragControls={dragControls}
+                        onSelect={() => onSelectStep(stepId)}
+                        onDelete={() => setStepToDelete(stepMap[stepId])}
+                      />
+                    )}
+                  </DraggableStepItem>
+                ))}
+              </Reorder.Group>
+            ) : (
+              <Empty>
+                {permissions.can("update", "assembly") && (
+                  <Button
+                    isDisabled={isDisabled}
+                    leftIcon={<LuCirclePlus />}
+                    variant="secondary"
+                    onClick={onAddStep}
+                  >
+                    Add Step
+                  </Button>
+                )}
+              </Empty>
+            )}
+          </VStack>
+          <div className="w-full flex-none border-t border-border p-4">
+            <Button
+              className="w-full"
+              isDisabled={
+                isDisabled ||
+                !permissions.can("update", "assembly") ||
+                newStepFetcher.state !== "idle"
+              }
+              isLoading={newStepFetcher.state !== "idle"}
+              leftIcon={<LuCirclePlus />}
+              variant="secondary"
+              onClick={onAddStep}
+            >
+              Add Step
+            </Button>
+          </div>
+        </TabsContent>
+        {/* forceMount keeps the BOM selection (and viewer highlight) alive across tab switches */}
+        <TabsContent
+          value="parts"
+          forceMount
+          className="min-h-0 flex-1 data-[state=inactive]:hidden"
+        >
+          <AssemblyBomTree
+            graphIndex={graphIndex}
+            steps={steps}
+            onHighlightParts={onHighlightParts}
+            onSelectStep={onSelectStep}
+          />
+        </TabsContent>
+      </Tabs>
       {stepToDelete && (
         <ConfirmDelete
           action={path.to.deleteAssemblyInstructionStep(id, stepToDelete.id)}

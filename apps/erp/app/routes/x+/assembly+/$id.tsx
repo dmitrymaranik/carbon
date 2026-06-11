@@ -124,6 +124,7 @@ export default function AssemblyInstructionRoute() {
     () => (graph ? indexAssemblyGraph(graph) : null),
     [graph]
   );
+  const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
 
   const selectedStep =
     steps.find((step) => step.id === selectedStepId) ?? steps[0] ?? null;
@@ -156,6 +157,7 @@ export default function AssemblyInstructionRoute() {
                   isDisabled={isDisabled}
                   graphIndex={graphIndex}
                   onSelectStep={onSelectStep}
+                  onHighlightParts={setHighlightedNodeIds}
                 />
               }
               content={
@@ -184,6 +186,7 @@ export default function AssemblyInstructionRoute() {
                               : setDraftPartNodeIds
                           }
                           onGraphLoaded={setGraph}
+                          highlightedNodeIds={highlightedNodeIds}
                           readOnly={isDisabled}
                           mode={mode}
                           className="h-full"

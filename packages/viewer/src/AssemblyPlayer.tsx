@@ -35,6 +35,12 @@ export type AssemblyPlayerProps = {
   onSelectParts?: (nodeIds: string[]) => void;
   /** Surfaces the parsed graph.json once loaded (for BOM/title derivation) */
   onGraphLoaded?: (graph: AssemblyGraph) => void;
+  /**
+   * External (e.g. BOM-driven) highlight. Highlighted parts render with an
+   * emissive tint and stay visible even when their step would hide them.
+   * Independent of click-selection.
+   */
+  highlightedNodeIds?: string[];
   /** Disables part selection (MES playback) */
   readOnly?: boolean;
   /** Initial render mode for future-step parts */
@@ -60,6 +66,7 @@ export function AssemblyPlayer({
   onStepChange,
   onSelectParts,
   onGraphLoaded,
+  highlightedNodeIds,
   readOnly = false,
   defaultFutureMode = "ghost",
   mode = "dark",
@@ -110,6 +117,7 @@ export function AssemblyPlayer({
               activeStepIndex={clampedIndex}
               isPlaying={isPlaying}
               futureMode={futureMode}
+              highlightedNodeIds={highlightedNodeIds}
               readOnly={readOnly}
               onSelectParts={onSelectParts}
             />
@@ -245,7 +253,7 @@ export function AssemblyPlayer({
 
 type PartVisual = "solid" | "active" | "hidden" | "ghost";
 
-type OverrideKind = "ghost" | "highlight" | "selected";
+type OverrideKind = "ghost" | "highlight" | "selected" | "external";
 
 type MaterialOverrides = {
   original: Material | Material[];
@@ -253,10 +261,12 @@ type MaterialOverrides = {
   ghost?: Material | Material[];
   highlight?: Material | Material[];
   selected?: Material | Material[];
+  external?: Material | Material[];
 };
 
 const HIGHLIGHT_COLOR = 0x3b82f6;
 const SELECTED_COLOR = 0xf59e0b;
+const EXTERNAL_COLOR = 0x10b981;
 const GHOST_OPACITY = 0.3;
 
 function AssemblyScene({
@@ -266,6 +276,7 @@ function AssemblyScene({
   activeStepIndex,
   isPlaying,
   futureMode,
+  highlightedNodeIds,
   readOnly,
   onSelectParts
 }: {
@@ -275,6 +286,7 @@ function AssemblyScene({
   activeStepIndex: number;
   isPlaying: boolean;
   futureMode: FuturePartsMode;
+  highlightedNodeIds?: string[];
   readOnly: boolean;
   onSelectParts?: (nodeIds: string[]) => void;
 }) {
@@ -284,6 +296,11 @@ function AssemblyScene({
   ) as unknown as OrbitControlsImpl | null;
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
     new Set()
+  );
+
+  const highlightedSet = useMemo(
+    () => new Set(highlightedNodeIds ?? []),
+    [highlightedNodeIds]
   );
 
   /** nodeId → index of the first step that installs it */
@@ -310,6 +327,7 @@ function AssemblyScene({
         if (entry.ghost) disposeMaterials(entry.ghost);
         if (entry.highlight) disposeMaterials(entry.highlight);
         if (entry.selected) disposeMaterials(entry.selected);
+        if (entry.external) disposeMaterials(entry.external);
       }
       overrides.clear();
     };
@@ -362,6 +380,21 @@ function AssemblyScene({
       applyVisual(node, visual);
     }
 
+    // External (BOM) highlight: emissive tint, forced visible even when the
+    // part's step would hide it ("show me all the M8 bolts")
+    for (const nodeId of highlightedSet) {
+      const node = nodesById.get(nodeId);
+      if (!node) continue;
+      node.visible = true;
+      node.traverse((object) => {
+        if (!(object as Mesh).isMesh) return;
+        const mesh = object as Mesh;
+        mesh.material = getOverride(mesh, overrides, "external");
+        mesh.renderOrder = 0;
+      });
+    }
+
+    // Click-selection renders on top of everything else
     for (const nodeId of selectedIds) {
       const node = nodesById.get(nodeId);
       if (!node || !node.visible) continue;
@@ -371,7 +404,14 @@ function AssemblyScene({
         mesh.material = getOverride(mesh, overrides, "selected");
       });
     }
-  }, [nodesById, stepIndexByNode, activeStepIndex, futureMode, selectedIds]);
+  }, [
+    nodesById,
+    stepIndexByNode,
+    activeStepIndex,
+    futureMode,
+    highlightedSet,
+    selectedIds
+  ]);
 
   // --- Animation -----------------------------------------------------------
 
@@ -452,6 +492,23 @@ function AssemblyScene({
     framedSceneRef.current = scene;
     frameBox(new Box3().setFromObject(scene));
   }, [scene, controls, frameBox]);
+
+  // Frame externally highlighted parts when the highlight changes (but keep
+  // the user's camera when the highlight is cleared)
+  const framedHighlightRef = useRef<string>("");
+  useEffect(() => {
+    const key = [...highlightedSet].sort().join("|");
+    if (key === framedHighlightRef.current) return;
+    framedHighlightRef.current = key;
+    if (highlightedSet.size === 0) return;
+
+    const box = new Box3();
+    for (const nodeId of highlightedSet) {
+      const node = nodesById.get(nodeId);
+      if (node) box.expandByObject(node);
+    }
+    frameBox(box);
+  }, [highlightedSet, nodesById, frameBox]);
 
   // Per-step camera: explicit pose wins; otherwise auto-frame active parts
   useEffect(() => {
@@ -544,13 +601,16 @@ function getOverride(
   }
   let override = entry[kind];
   if (!override) {
+    const emissiveColor =
+      kind === "highlight"
+        ? HIGHLIGHT_COLOR
+        : kind === "selected"
+          ? SELECTED_COLOR
+          : EXTERNAL_COLOR;
     override =
       kind === "ghost"
         ? cloneAsGhost(entry.original)
-        : cloneWithEmissive(
-            entry.original,
-            kind === "highlight" ? HIGHLIGHT_COLOR : SELECTED_COLOR
-          );
+        : cloneWithEmissive(entry.original, emissiveColor);
     entry[kind] = override;
   }
   return override;
