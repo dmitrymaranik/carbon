@@ -65,6 +65,15 @@ export type Events = {
     };
   };
 
+  // Assembly motion planning (collision-free removal paths + sequence)
+  "carbon/assembly-plan": {
+    data: {
+      modelUploadId: string;
+      companyId: string;
+      userId: string;
+    };
+  };
+
   // Model thumbnail generation
   "carbon/model-thumbnail": {
     data: {

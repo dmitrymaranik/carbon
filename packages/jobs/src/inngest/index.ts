@@ -40,6 +40,7 @@ import {
 } from "./functions/scheduled";
 import {
   assemblyConvertFunction,
+  assemblyPlanFunction,
   modelThumbnailFunction,
   onboardFunction,
   postTransactionFunction,
@@ -65,6 +66,7 @@ export const functions = [
   embeddingFunction,
   // Tasks
   assemblyConvertFunction,
+  assemblyPlanFunction,
   modelThumbnailFunction,
   updatePermissionsFunction,
   recalculateFunction,

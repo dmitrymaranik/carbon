@@ -3,6 +3,7 @@ import type { Kysely, KyselyDatabase } from "@carbon/database/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { z } from "zod";
 import type {
+  assemblyGroupTypes,
   assemblyInstructionStatuses,
   assemblyNoteSeverities,
   assemblyRequirementTypes,
@@ -452,4 +453,91 @@ export async function deleteAssemblyStandardNote(
   id: string
 ) {
   return client.from("assemblyStandardNote").delete().eq("id", id);
+}
+
+export async function getAssemblyGroups(
+  client: SupabaseClient<Database>,
+  assemblyInstructionId: string
+) {
+  return client
+    .from("assemblyGroup")
+    .select("*")
+    .eq("assemblyInstructionId", assemblyInstructionId)
+    .order("name");
+}
+
+export async function upsertAssemblyGroup(
+  client: SupabaseClient<Database>,
+  data: {
+    id?: string;
+    assemblyInstructionId: string;
+    name: string;
+    type: (typeof assemblyGroupTypes)[number];
+    partNodeIds: string[];
+    partNumber?: string | null;
+    childInstructionId?: string | null;
+    companyId: string;
+    createdBy: string;
+    updatedBy?: string;
+  }
+) {
+  if (data.id) {
+    return client
+      .from("assemblyGroup")
+      .update({
+        name: data.name,
+        partNodeIds: data.partNodeIds,
+        partNumber: data.partNumber ?? null,
+        ...(data.childInstructionId !== undefined
+          ? { childInstructionId: data.childInstructionId }
+          : {}),
+        updatedBy: data.updatedBy ?? data.createdBy,
+        updatedAt: new Date().toISOString()
+      })
+      .eq("id", data.id)
+      .select("id")
+      .single();
+  }
+
+  return client
+    .from("assemblyGroup")
+    .insert({
+      assemblyInstructionId: data.assemblyInstructionId,
+      name: data.name,
+      type: data.type,
+      partNodeIds: data.partNodeIds,
+      partNumber: data.partNumber ?? null,
+      childInstructionId: data.childInstructionId ?? null,
+      companyId: data.companyId,
+      createdBy: data.createdBy
+    })
+    .select("id")
+    .single();
+}
+
+export async function deleteAssemblyGroup(
+  client: SupabaseClient<Database>,
+  id: string
+) {
+  return client.from("assemblyGroup").delete().eq("id", id);
+}
+
+/**
+ * Latest successful motion plan for a model. The editor uses plan.json to
+ * auto-fill step motions and to generate draft step sequences.
+ */
+export async function getLatestAssemblyPlan(
+  client: SupabaseClient<Database>,
+  modelUploadId: string
+) {
+  return client
+    .from("assemblyPlanJob")
+    .select("id, planPath, stats, createdAt")
+    .eq("modelUploadId", modelUploadId)
+    .eq("kind", "plan")
+    .eq("status", "Success")
+    .not("planPath", "is", null)
+    .order("createdAt", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 }

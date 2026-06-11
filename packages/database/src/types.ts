@@ -1891,6 +1891,87 @@ export type Database = {
           },
         ]
       }
+      assemblyGroup: {
+        Row: {
+          assemblyInstructionId: string
+          childInstructionId: string | null
+          companyId: string
+          createdAt: string
+          createdBy: string
+          id: string
+          name: string
+          partNodeIds: string[]
+          partNumber: string | null
+          type: Database["public"]["Enums"]["assemblyGroupType"]
+          updatedAt: string | null
+          updatedBy: string | null
+        }
+        Insert: {
+          assemblyInstructionId: string
+          childInstructionId?: string | null
+          companyId: string
+          createdAt?: string
+          createdBy: string
+          id?: string
+          name: string
+          partNodeIds?: string[]
+          partNumber?: string | null
+          type: Database["public"]["Enums"]["assemblyGroupType"]
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Update: {
+          assemblyInstructionId?: string
+          childInstructionId?: string | null
+          companyId?: string
+          createdAt?: string
+          createdBy?: string
+          id?: string
+          name?: string
+          partNodeIds?: string[]
+          partNumber?: string | null
+          type?: Database["public"]["Enums"]["assemblyGroupType"]
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assemblyGroup_assemblyInstructionId_fkey"
+            columns: ["assemblyInstructionId"]
+            isOneToOne: false
+            referencedRelation: "assemblyInstruction"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyGroup_childInstructionId_fkey"
+            columns: ["childInstructionId"]
+            isOneToOne: false
+            referencedRelation: "assemblyInstruction"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyGroup_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyGroup_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyGroup_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assemblyInstruction: {
         Row: {
           assemblyPlanJobId: string | null
@@ -2001,6 +2082,7 @@ export type Database = {
           durationSeconds: number | null
           explode: Json | null
           fastener: Json | null
+          groupIds: string[]
           id: string
           instructionText: string | null
           motion: Json
@@ -2024,6 +2106,7 @@ export type Database = {
           durationSeconds?: number | null
           explode?: Json | null
           fastener?: Json | null
+          groupIds?: string[]
           id?: string
           instructionText?: string | null
           motion?: Json
@@ -2047,6 +2130,7 @@ export type Database = {
           durationSeconds?: number | null
           explode?: Json | null
           fastener?: Json | null
+          groupIds?: string[]
           id?: string
           instructionText?: string | null
           motion?: Json
@@ -65798,6 +65882,7 @@ export type Database = {
     }
     Enums: {
       accountingPeriodStatus: "Inactive" | "Active"
+      assemblyGroupType: "Cluster" | "Kit" | "Combination" | "Subassembly"
       assemblyInstructionStatus: "Draft" | "Published" | "Archived"
       assemblyNoteSeverity: "Info" | "Caution" | "Warning"
       assemblyRequirementType:
@@ -67083,6 +67168,7 @@ export const Constants = {
   public: {
     Enums: {
       accountingPeriodStatus: ["Inactive", "Active"],
+      assemblyGroupType: ["Cluster", "Kit", "Combination", "Subassembly"],
       assemblyInstructionStatus: ["Draft", "Published", "Archived"],
       assemblyNoteSeverity: ["Info", "Caution", "Warning"],
       assemblyRequirementType: [

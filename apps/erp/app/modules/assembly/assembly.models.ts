@@ -178,6 +178,22 @@ export const assemblyStandardNoteValidator = z.object({
   severity: z.enum(assemblyNoteSeverities)
 });
 
+export const assemblyGroupTypes = [
+  "Cluster",
+  "Kit",
+  "Combination",
+  "Subassembly"
+] as const;
+
+export const assemblyGroupValidator = z.object({
+  id: zfd.text(z.string().optional()),
+  assemblyInstructionId: z.string().min(1),
+  name: z.string().min(1, { message: "Name is required" }),
+  type: z.enum(assemblyGroupTypes),
+  partNodeIds: jsonField(z.array(z.string()).min(1)),
+  partNumber: zfd.text(z.string().optional())
+});
+
 export type Motion = z.infer<typeof motionSchema>;
 export type CameraPose = z.infer<typeof cameraSchema>;
 export type Fastener = z.infer<typeof fastenerSchema>;
