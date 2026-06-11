@@ -250,6 +250,7 @@ export function AssemblyPlayer({
               readOnly={readOnly}
               onSelectParts={onSelectParts}
               assemblyBounds={graphIndex?.graph.root.bbox ?? null}
+              leafBounds={graphIndex?.leaves ?? null}
               segments={segments}
               startTimes={startTimes}
               playheadRef={playheadRef}
@@ -447,6 +448,7 @@ function AssemblyScene({
   readOnly,
   onSelectParts,
   assemblyBounds,
+  leafBounds,
   segments,
   startTimes,
   playheadRef,
@@ -466,6 +468,10 @@ function AssemblyScene({
   onSelectParts?: (nodeIds: string[]) => void;
   /** Seated world bounds from graph.json (stable under animation) */
   assemblyBounds: { min: number[]; max: number[] } | null;
+  /** Seated per-leaf bounds for camera occlusion scoring */
+  leafBounds:
+    | { nodeId: string; bbox: { min: number[]; max: number[] } }[]
+    | null;
   /** Timeline seconds per step */
   segments: number[];
   /** Timeline start (seconds) of each step */
@@ -860,56 +866,107 @@ function AssemblyScene({
     if (partBox.isEmpty()) return;
     const partCenter = partBox.getCenter(new Vector3());
 
-    // Look from the part's side of the assembly, slightly elevated
-    let viewDirection = partCenter.clone().sub(center);
-    if (viewDirection.lengthSq() < 1e-6) {
-      viewDirection = camera.position.clone().sub(controls.target);
-    }
-    viewDirection.normalize().addScaledVector(camera.up, 0.45).normalize();
-
-    // Never look straight along the up axis — orbit controls roll wildly
-    // at the poles and the view loses its horizon
-    if (Math.abs(viewDirection.dot(camera.up)) > 0.85) {
-      const horizontal = camera.position.clone().sub(controls.target);
-      horizontal.addScaledVector(camera.up, -horizontal.dot(camera.up));
-      if (horizontal.lengthSq() < 1e-6) horizontal.set(1, 0, 0);
-      viewDirection.addScaledVector(horizontal.normalize(), 0.7).normalize();
-    }
-
-    // If the insertion travel runs toward/away from this view, swing
-    // sideways so the motion reads as movement across the screen
-    const motionDirection = insertionDirection(step.motion);
-    if (
-      motionDirection &&
-      Math.abs(viewDirection.dot(motionDirection)) > 0.85
-    ) {
-      const side = new Vector3().crossVectors(motionDirection, camera.up);
-      if (side.lengthSq() < 1e-6) {
-        side.crossVectors(motionDirection, new Vector3(1, 0, 0));
-      }
-      side.normalize();
-      const outward = partCenter.clone().sub(center);
-      if (side.dot(outward) < 0) side.negate();
-      viewDirection.multiplyScalar(0.5).addScaledVector(side, 0.85).normalize();
-    }
-
-    // Blend with the current view so consecutive steps on opposite sides
-    // turn the camera gently instead of whipping it around the model
-    const currentDirection = camera.position.clone().sub(controls.target);
-    if (currentDirection.lengthSq() > 1e-6) {
-      viewDirection
-        .multiplyScalar(0.65)
-        .addScaledVector(currentDirection.normalize(), 0.35)
-        .normalize();
-    }
-
     // Aim mostly at the assembly (context) with a nudge toward the part
     const target = center.clone().lerp(partCenter, 0.3);
+
+    // Where the action happens: the seated pose and the travel midpoint
+    const motionDirection = insertionDirection(step.motion);
+    const lookPoints = [partCenter];
+    const startOffset = insertionStartOffset(step.motion);
+    if (startOffset) {
+      lookPoints.push(partCenter.clone().addScaledVector(startOffset, 0.5));
+    }
+
+    // Occluders: everything that renders during this step, weighted by how
+    // strongly it hides the action (ghosted future parts barely count)
+    const stepParts = new Set(step.partNodeIds);
+    const occluders: { min: Vector3; max: Vector3; weight: number }[] = [];
+    for (const leaf of leafBounds ?? []) {
+      if (stepParts.has(leaf.nodeId)) continue;
+      if (hiddenSet.has(leaf.nodeId)) continue;
+      const leafStep = stepIndexByNode.get(leaf.nodeId);
+      const isFuture = leafStep !== undefined && leafStep > activeStepIndex;
+      if (isFuture && futureMode === "hidden") continue;
+      occluders.push({
+        min: new Vector3(...(leaf.bbox.min as [number, number, number])),
+        max: new Vector3(...(leaf.bbox.max as [number, number, number])),
+        weight: isFuture && futureMode === "ghost" ? 0.3 : 1
+      });
+    }
+
+    // Candidate view directions: two elevation rings around the up axis,
+    // plus the current view. Pick the one that sees the action with the
+    // fewest parts in the way, preferring lateral travel and small turns.
+    const up = camera.up.clone().normalize();
+    let basisU = new Vector3().crossVectors(up, new Vector3(0, 0, 1));
+    if (basisU.lengthSq() < 1e-6) {
+      basisU = new Vector3().crossVectors(up, new Vector3(1, 0, 0));
+    }
+    basisU.normalize();
+    const basisV = new Vector3().crossVectors(up, basisU).normalize();
+
+    const currentDirection = camera.position
+      .clone()
+      .sub(controls.target)
+      .normalize();
+    const candidates: Vector3[] = [];
+    if (currentDirection.lengthSq() > 1e-6) candidates.push(currentDirection);
+    for (const elevation of [0.3, 0.55]) {
+      const horizontal = Math.sqrt(1 - elevation * elevation);
+      for (let i = 0; i < 8; i++) {
+        const azimuth = (i / 8) * Math.PI * 2;
+        candidates.push(
+          new Vector3()
+            .addScaledVector(basisU, Math.cos(azimuth) * horizontal)
+            .addScaledVector(basisV, Math.sin(azimuth) * horizontal)
+            .addScaledVector(up, elevation)
+            .normalize()
+        );
+      }
+    }
+
+    let bestDirection = candidates[0] ?? new Vector3(1, 1, 1).normalize();
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const candidate of candidates) {
+      const eye = target.clone().addScaledVector(candidate, distance);
+      let score = 0;
+      // How much is in the way of seeing the action?
+      for (const point of lookPoints) {
+        for (const occluder of occluders) {
+          if (segmentIntersectsBox(eye, point, occluder.min, occluder.max)) {
+            score += occluder.weight;
+          }
+        }
+      }
+      // Prefer travel running across the screen, not into it
+      if (motionDirection) {
+        score +=
+          4 * Math.max(0, Math.abs(candidate.dot(motionDirection)) - 0.6);
+      }
+      // Prefer small turns from the current view
+      score += 1.75 * (1 - candidate.dot(currentDirection));
+      if (score < bestScore) {
+        bestScore = score;
+        bestDirection = candidate;
+      }
+    }
+
     desiredPoseRef.current = {
-      position: target.clone().addScaledVector(viewDirection, distance),
+      position: target.clone().addScaledVector(bestDirection, distance),
       target
     };
-  }, [steps, activeStepIndex, nodesById, camera, controls, getAssemblyBox]);
+  }, [
+    steps,
+    activeStepIndex,
+    nodesById,
+    camera,
+    controls,
+    getAssemblyBox,
+    leafBounds,
+    hiddenSet,
+    stepIndexByNode,
+    futureMode
+  ]);
 
   // --- Selection -------------------------------------------------------------
 
@@ -954,6 +1011,64 @@ function AssemblyScene({
       onPointerMissed={handlePointerMissed}
     />
   );
+}
+
+/**
+ * Does the open segment from `origin` to `end` pass through the AABB?
+ * Slab clipping; ignores grazing contact right at the endpoint so a box
+ * around the look-at point does not count as occluding itself.
+ */
+function segmentIntersectsBox(
+  origin: Vector3,
+  end: Vector3,
+  min: Vector3,
+  max: Vector3
+): boolean {
+  let tMin = 0;
+  let tMax = 0.98; // stop just short of the look-at point
+  const axes = ["x", "y", "z"] as const;
+  for (const axis of axes) {
+    const delta = end[axis] - origin[axis];
+    if (Math.abs(delta) < 1e-9) {
+      if (origin[axis] < min[axis] || origin[axis] > max[axis]) return false;
+      continue;
+    }
+    let tNear = (min[axis] - origin[axis]) / delta;
+    let tFar = (max[axis] - origin[axis]) / delta;
+    if (tNear > tFar) [tNear, tFar] = [tFar, tNear];
+    tMin = Math.max(tMin, tNear);
+    tMax = Math.min(tMax, tFar);
+    if (tMin > tMax) return false;
+  }
+  return true;
+}
+
+/**
+ * Where a part starts relative to its seated pose for the given insertion
+ * motion. Null when the motion does not translate the part.
+ */
+function insertionStartOffset(motion: AssemblyStep["motion"]): Vector3 | null {
+  switch (motion.type) {
+    case "linear": {
+      const direction = new Vector3(...motion.direction).normalize();
+      return direction.multiplyScalar(-motion.distance);
+    }
+    case "L": {
+      const offset = new Vector3();
+      for (const segment of motion.segments) {
+        const direction = new Vector3(...segment.direction).normalize();
+        offset.addScaledVector(direction, -segment.distance);
+      }
+      return offset;
+    }
+    case "helix": {
+      const axis = new Vector3(...motion.axis).normalize();
+      const travel = motion.approach + motion.pitch * motion.turns;
+      return axis.multiplyScalar(-travel);
+    }
+    default:
+      return null;
+  }
 }
 
 /**

@@ -46,6 +46,12 @@ PENETRATION_TOLERANCE_MM = 0.15
 # Margin (mm) past the assembly bounds before a part counts as "out".
 EXIT_MARGIN_MM = 5.0
 
+# Densify sampling on long paths: never step more than this between
+# collision checks, or thin features (washers, flanges) slip between
+# samples and produce false "removable" results that scramble the sequence.
+MAX_SAMPLE_SPACING_MM = 2.0
+MAX_PATH_SAMPLES = 400
+
 WORLD_AXES = [
     np.array([0.0, 0.0, 1.0]),
     np.array([0.0, 0.0, -1.0]),
@@ -452,6 +458,10 @@ def _path_is_clear(
     """
     if end <= start:
         return False
+    samples = min(
+        max(samples, int((end - start) / MAX_SAMPLE_SPACING_MM) + 1),
+        MAX_PATH_SAMPLES,
+    )
     offsets = np.linspace(start, end, samples, endpoint=True)[1:]
     transform = np.eye(4)
     for s in offsets:

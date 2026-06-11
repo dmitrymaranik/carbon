@@ -135,3 +135,54 @@ def test_rod_prefers_its_own_axis():
     # Axis-first: the rod leaves along ±X (its own axis), not +Z
     assert abs(direction[0]) == 1.0
     assert direction[1] == 0.0 and direction[2] == 0.0
+
+
+def test_captive_washer_assembles_before_its_bolt():
+    # Washer captive between a bolt head and the plate: disassembly must pull
+    # the bolt first, so assembly order is plate -> washer -> bolt.
+    plate = trimesh.creation.box(extents=(60, 60, 20))
+    plate.apply_translation((0, 0, 10))
+    hole = trimesh.creation.cylinder(radius=5.2, height=30)
+    hole.apply_translation((0, 0, 10))
+    plate = plate.difference(hole)
+    plate_part = _Part(
+        node_id="plate",
+        name="plate",
+        mesh=plate,
+        bbox_min=np.array(plate.bounds[0]),
+        bbox_max=np.array(plate.bounds[1]),
+        is_proxy=False,
+    )
+
+    washer = trimesh.creation.annulus(r_min=4.4, r_max=9.0, height=1.5)
+    washer.apply_translation((0, 0, 20.85))
+    washer_part = _Part(
+        node_id="washer",
+        name="washer",
+        mesh=washer,
+        bbox_min=np.array(washer.bounds[0]),
+        bbox_max=np.array(washer.bounds[1]),
+        is_proxy=False,
+    )
+
+    shaft = trimesh.creation.cylinder(radius=4.0, height=22)
+    shaft.apply_translation((0, 0, 11))
+    head = trimesh.creation.cylinder(radius=8.0, height=5)
+    head.apply_translation((0, 0, 24.2))
+    bolt = shaft.union(head)
+    bolt_part = _Part(
+        node_id="bolt",
+        name="bolt",
+        mesh=bolt,
+        bbox_min=np.array(bolt.bounds[0]),
+        bbox_max=np.array(bolt.bounds[1]),
+        is_proxy=False,
+    )
+
+    planned, sequence, _tiers = _plan([plate_part, washer_part, bolt_part])
+    by_id = {entry.node_id: entry for entry in planned}
+
+    # The bolt leaves along its axis; the washer follows once the bolt is out
+    assert by_id["bolt"].motion["type"] == "linear"
+    assert sequence.index("washer") < sequence.index("bolt")
+    assert sequence.index("plate") < sequence.index("washer")
