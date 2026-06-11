@@ -178,6 +178,14 @@ export function spawnGeometry(opts: {
 
   const color = pc.yellow;
   const port = ports.PORT_GEOMETRY;
+
+  // Trust portless's self-signed CA so the service can fetch signed URLs
+  // from the local Supabase storage (served over HTTPS via portless).
+  const caPath = join(homedir(), ".portless", "ca.pem");
+  const caEnv = existsSync(caPath)
+    ? { SSL_CERT_FILE: caPath, REQUESTS_CA_BUNDLE: caPath }
+    : {};
+
   const child = execa(
     venvPython,
     [
@@ -194,6 +202,7 @@ export function spawnGeometry(opts: {
       cwd: serviceDir,
       env: {
         ...process.env,
+        ...caEnv,
         GEOMETRY_SERVICE_API_KEY: "dev-local-key",
         GEOMETRY_DEV_MODE: "true"
       },
