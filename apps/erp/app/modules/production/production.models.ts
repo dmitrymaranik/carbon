@@ -1114,6 +1114,18 @@ export const assemblyInstructionValidator = z.object({
   itemId: zfd.text(z.string().optional())
 });
 
+/**
+ * Creating an instruction starts from a made item; the model is derived
+ * server-side from the item's processed CAD files. An explicit
+ * modelUploadId (e.g. from the part details page) takes precedence.
+ */
+export const assemblyInstructionFromItemValidator = z.object({
+  id: zfd.text(z.string().optional()),
+  name: zfd.text(z.string().optional()),
+  itemId: z.string().min(1, { message: "Item is required" }),
+  modelUploadId: zfd.text(z.string().optional())
+});
+
 export const assemblyInstructionStatusValidator = z.object({
   status: z.enum(assemblyInstructionStatuses)
 });

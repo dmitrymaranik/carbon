@@ -3439,6 +3439,40 @@ export async function getAssemblyInstructions(
   return query.order("updatedAt", { ascending: false, nullsFirst: false });
 }
 
+/**
+ * Resolves a made item's usable CAD model for assembly instructions. Items
+ * link to their model via item.modelUploadId; the model is usable once the
+ * geometry pipeline has produced a GLB + graph for it.
+ */
+export async function getValidModelForItem(
+  client: SupabaseClient<Database>,
+  itemId: string,
+  companyId: string
+) {
+  const item = await client
+    .from("item")
+    .select("id, name, modelUploadId")
+    .eq("id", itemId)
+    .eq("companyId", companyId)
+    .single();
+  if (item.error) return { item: null, model: null };
+
+  if (!item.data.modelUploadId) return { item: item.data, model: null };
+
+  const model = await client
+    .from("modelUpload")
+    .select("id, name, partCount, processingStatus, glbPath, graphPath")
+    .eq("id", item.data.modelUploadId)
+    .maybeSingle();
+
+  const isValid =
+    model.data?.processingStatus === "Success" &&
+    Boolean(model.data.glbPath) &&
+    Boolean(model.data.graphPath);
+
+  return { item: item.data, model: isValid ? model.data : null };
+}
+
 export async function getAssemblyInstructionSteps(
   client: SupabaseClient<Database>,
   assemblyInstructionId: string

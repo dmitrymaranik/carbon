@@ -1,6 +1,6 @@
 {
-  "generated": "2026-06-11T04:53:37.096Z",
-  "totalTools": 1204,
+  "generated": "2026-06-11T13:23:51.197Z",
+  "totalTools": 1205,
   "modules": 15,
   "tools": [
     {
@@ -17412,6 +17412,32 @@
             "type": "number"
           }
         }
+      }
+    },
+    {
+      "name": "production_getValidModelForItem",
+      "module": "production",
+      "classification": "READ",
+      "description": "get valid model for item",
+      "paramCount": 1,
+      "serviceParams": [
+        "client",
+        "itemId",
+        "companyId"
+      ],
+      "injectAuth": [
+        "companyId"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "itemId"
+        ]
       }
     },
     {

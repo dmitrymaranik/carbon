@@ -5,32 +5,24 @@ import { validationError, validator } from "@carbon/form";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { data, redirect, useLoaderData, useNavigate } from "react-router";
 import {
-  assemblyInstructionValidator,
+  assemblyInstructionFromItemValidator,
+  getValidModelForItem,
   upsertAssemblyInstruction
 } from "~/modules/production";
 import AssemblyInstructionForm from "~/modules/production/ui/Assemblies/AssemblyInstructionForm";
 import { path } from "~/utils/path";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { client, companyId } = await requirePermissions(request, {
+  await requirePermissions(request, {
     create: "production"
   });
 
   const url = new URL(request.url);
 
-  const models = await client
-    .from("modelUpload")
-    .select("id, name, partCount")
-    .eq("companyId", companyId)
-    .eq("processingStatus", "Success")
-    .order("createdAt", { ascending: false });
-
   return {
-    models: models.data ?? [],
     initialValues: {
       name: "",
-      modelUploadId: url.searchParams.get("modelUploadId") ?? "",
-      itemId: url.searchParams.get("itemId") ?? undefined
+      itemId: url.searchParams.get("itemId") ?? ""
     }
   };
 }
@@ -41,39 +33,62 @@ export async function action({ request }: ActionFunctionArgs) {
     create: "production"
   });
 
-  const validation = await validator(assemblyInstructionValidator).validate(
-    await request.formData()
-  );
+  const validation = await validator(
+    assemblyInstructionFromItemValidator
+  ).validate(await request.formData());
 
   if (validation.error) {
     return validationError(validation.error);
   }
 
-  const model = await client
-    .from("modelUpload")
-    .select("id, processingStatus")
-    .eq("id", validation.data.modelUploadId)
-    .eq("companyId", companyId)
-    .single();
+  const { itemId, name, modelUploadId } = validation.data;
 
-  if (model.error || model.data.processingStatus !== "Success") {
+  // An explicitly provided model (e.g. from the part details page) wins when
+  // it has been processed; otherwise derive it from the item's CAD files
+  let model: { id: string } | null = null;
+
+  if (modelUploadId) {
+    const explicit = await client
+      .from("modelUpload")
+      .select("id, processingStatus, glbPath, graphPath")
+      .eq("id", modelUploadId)
+      .eq("companyId", companyId)
+      .maybeSingle();
+    if (
+      explicit.data?.processingStatus === "Success" &&
+      explicit.data.glbPath &&
+      explicit.data.graphPath
+    ) {
+      model = explicit.data;
+    }
+  }
+
+  const derived = await getValidModelForItem(client, itemId, companyId);
+  if (!derived.item) {
+    return data(
+      {},
+      await flash(request, error(null, "Failed to load the selected item"))
+    );
+  }
+  if (!model) model = derived.model;
+
+  if (!model) {
     return data(
       {},
       await flash(
         request,
         error(
-          model.error,
-          "Model has not been processed for assembly instructions"
+          null,
+          "The selected item has no processed 3D model. Upload a STEP file on the item's Model tab first."
         )
       )
     );
   }
 
-  // biome-ignore lint/correctness/noUnusedVariables: id is never set on create
-  const { id, ...rest } = validation.data;
-
   const create = await upsertAssemblyInstruction(client, {
-    ...rest,
+    name: name?.trim() || derived.item.name || "Assembly",
+    modelUploadId: model.id,
+    itemId,
     companyId,
     createdBy: userId
   });
@@ -95,13 +110,12 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function NewAssemblyInstructionRoute() {
-  const { models, initialValues } = useLoaderData<typeof loader>();
+  const { initialValues } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
 
   return (
     <AssemblyInstructionForm
       initialValues={initialValues}
-      models={models}
       onClose={() => navigate(path.to.assemblyInstructions)}
     />
   );

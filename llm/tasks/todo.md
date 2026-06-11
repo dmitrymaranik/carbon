@@ -21,13 +21,13 @@ Note: per AGENTS.md, never rebuild the database here — the user runs migration
 ## Sprint 2 — remaining feature parity (autonomous)
 
 - [x] Production-module refactor (done; committed + browser-verified via /test)
-- [ ] Defensive step status (DB without migration shows "undefined"). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [ ] Step search/filter in the explorer (1C.1). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [ ] Step time summary (1A.5): per-step duration display + total. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [ ] Continuous timeline (1B.4): global clock, m:ss display, step ticks. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [ ] Component grouping UI (req §4): context menu on BOM selection → cluster/kit/combination/subassembly, groups section in Parts tab, delete group. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [ ] MES: render step requirements (notes/tools/media) in playback (req §3 display). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
-- [ ] Authorship display (2A.3 partial): created by + last edited in header. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] Defensive step status (DB without migration shows "undefined"). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] Step search/filter in the explorer (1C.1). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] Step time summary (1A.5): per-step duration display + total. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] Continuous timeline (1B.4): global clock, m:ss display, step ticks. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] Component grouping UI (req §4): context menu on BOM selection → cluster/kit/combination/subassembly, groups section in Parts tab, delete group. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] MES: render step requirements (notes/tools/media) in playback (req §3 display). Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
+- [x] Authorship display (2A.3 partial): created by + last edited in header + version bump on publish. Spawn subtasks to query the cache folder any time I need to learn something about the codebase. NEVER update the cache with plans or information about code that is not yet committed.
 - [ ] NOTE: no whole-project typescript checking (user rule) — verify with vitest, biome, and browser tests only.
 
 ## Review
@@ -59,3 +59,24 @@ Note: per AGENTS.md, never rebuild the database here — the user runs migration
 - Deferred by design: continuous timeline (§5.3), component grouping
   (kits/clusters/subassemblies), requirement drag-reorder UI (route +
   service exist; list renders in sortOrder).
+
+
+### Sprint 2 review (2026-06-11)
+
+- Browser-verified via /test + manual: production module renders
+  (/x/production/assemblies, sidebar Assemblies, full-screen editor),
+  timeline plays through steps and stops at the end ("0:03 / 0:04"), search
+  input + status dots + "N steps · est." summary render, BOM selection
+  toolbar/context menu/create-group modal work, header shows
+  "EDIT 1 · By you · edited <relative>".
+- Local DB is missing migrations from 20260610183947 onward (status,
+  requirements, groups) — applying them directly was correctly blocked by
+  the no-DB-changes boundary. Group/requirement CRUD and status persistence
+  need a user DB rebuild to verify end-to-end; UI degrades gracefully until
+  then.
+- Remaining parity tail (not started): share link (#12), PDF export (#14),
+  undo/redo (#15), tree-vs-flat step toggle (#16), annotations (#17,
+  deferred by plan), Model/Instructions top-level tabs (§5.4 — largely
+  covered by Parts tab + Solid mode), per-kit step animation semantics.
+- Per user rule: no whole-project typescript checking; verified with
+  vitest (30/30), biome, and in-browser tests instead.
