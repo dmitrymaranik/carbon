@@ -96,6 +96,15 @@ value or `assembly_*` permission family.
   tab (gated on production_create). MES: Assembly tab in
   `apps/mes/app/components/JobOperation/` (read-only playback + active step's
   notes/tools/media via requirements in getJobOperationAssembly; serviceRole read).
+- BOM mapping: `assemblyPartMapping` table maps distinct model parts
+  (geometryHash, per modelUploadId) to engineering BOM items;
+  `getFlattenedBomMaterials` walks makeMethod → methodMaterial →
+  materialMakeMethodId (Make subassemblies) multiplying quantities;
+  `autoMatchAssemblyParts` does greedy token-similarity name matching with a
+  unique-quantity fallback. Editor Parts tab: "Match BOM" button, coverage
+  count, mapped readable-ID under each row with BOM-vs-model quantity
+  mismatch warnings, map/unmap in the part popover
+  (routes `$id.part-mappings.{new,auto,delete.$mappingId}`).
 - Planner consumption (the core flow — authors never hand-author motions):
   "Generate Steps" on an empty step list creates draft steps from plan.json
   (route `$id.steps.generate` → `generateAssemblyStepsFromPlan`: sequence
