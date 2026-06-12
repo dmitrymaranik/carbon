@@ -5,6 +5,7 @@ import type {
   getAssemblyInstructionStepRequirements,
   getAssemblyInstructionSteps,
   getAssemblyInstructions,
+  getAssemblyPartMappings,
   getAssemblyStandardNotes,
   getFailureMode,
   getFailureModes,
@@ -164,4 +165,8 @@ export type AssemblyStandardNote = NonNullable<
 
 export type AssemblyGroup = NonNullable<
   Awaited<ReturnType<typeof getAssemblyGroups>>["data"]
+>[number];
+
+export type AssemblyPartMapping = NonNullable<
+  Awaited<ReturnType<typeof getAssemblyPartMappings>>["data"]
 >[number];

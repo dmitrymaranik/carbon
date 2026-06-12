@@ -44,8 +44,13 @@ import { Empty } from "~/components";
 import { usePermissions } from "~/hooks";
 import { path } from "~/utils/path";
 import type { assemblyGroupTypes } from "../../production.models";
+import type { FlattenedBomMaterial } from "../../production.service";
 import { toViewerStep } from "../../production.service";
-import type { AssemblyGroup, AssemblyInstructionStepRow } from "../../types";
+import type {
+  AssemblyGroup,
+  AssemblyInstructionStepRow,
+  AssemblyPartMapping
+} from "../../types";
 import { PartColorSwatch } from "./AssemblyStepBom";
 
 type SortMode = "count" | "alpha";
@@ -56,6 +61,9 @@ type AssemblyBomTreeProps = {
   steps: AssemblyInstructionStepRow[];
   groups: AssemblyGroup[];
   isDisabled: boolean;
+  modelUploadId: string | null;
+  partMappings: AssemblyPartMapping[];
+  bomMaterials: FlattenedBomMaterial[];
   onHighlightParts: (nodeIds: string[]) => void;
   onHideParts: (nodeIds: string[]) => void;
   onSelectStep: (stepId: string) => void;
@@ -66,12 +74,17 @@ type AssemblyBomTreeProps = {
  * part with its instance count, plus authored part groups (clusters, kits,
  * combinations, subassemblies). Selecting rows highlights all instances in
  * the viewer; selections can be grouped via the toolbar or right-click menu.
+ * Parts map to engineering BOM items (methodMaterial) by geometry hash —
+ * auto-matched by name/quantity, adjustable per part in the detail popover.
  */
 export default function AssemblyBomTree({
   graphIndex,
   steps,
   groups,
   isDisabled,
+  modelUploadId,
+  partMappings,
+  bomMaterials,
   onHighlightParts,
   onHideParts,
   onSelectStep
@@ -81,6 +94,17 @@ export default function AssemblyBomTree({
 
   const permissions = usePermissions();
   const canGroup = !isDisabled && permissions.can("create", "production");
+  const canMap =
+    !isDisabled &&
+    permissions.can("update", "production") &&
+    Boolean(modelUploadId);
+
+  const autoMatchFetcher = useFetcher<{ success: boolean }>();
+  const mappingsByHash = useMemo(
+    () =>
+      new Map(partMappings.map((mapping) => [mapping.geometryHash, mapping])),
+    [partMappings]
+  );
 
   const [sortMode, setSortMode] = useState<SortMode>("count");
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(
@@ -248,9 +272,27 @@ export default function AssemblyBomTree({
         <span className="text-xs text-muted-foreground tabular-nums">
           {selectedKeys.size > 0
             ? `${selectedKeys.size} selected`
-            : `${partGroups.length} part${partGroups.length === 1 ? "" : "s"} · ${graphIndex.graph.partCount} instance${graphIndex.graph.partCount === 1 ? "" : "s"}`}
+            : bomMaterials.length > 0
+              ? `${partGroups.length} parts · ${mappingsByHash.size} mapped to BOM`
+              : `${partGroups.length} part${partGroups.length === 1 ? "" : "s"} · ${graphIndex.graph.partCount} instance${graphIndex.graph.partCount === 1 ? "" : "s"}`}
         </span>
         <div className="flex items-center gap-1">
+          {selectedKeys.size === 0 && canMap && bomMaterials.length > 0 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              isDisabled={autoMatchFetcher.state !== "idle"}
+              isLoading={autoMatchFetcher.state !== "idle"}
+              onClick={() => {
+                autoMatchFetcher.submit(new FormData(), {
+                  method: "post",
+                  action: path.to.autoMatchAssemblyParts(id)
+                });
+              }}
+            >
+              Match BOM
+            </Button>
+          )}
           {selectedKeys.size > 0 && canGroup && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -333,6 +375,11 @@ export default function AssemblyBomTree({
                     isSelected={selectedKeys.has(group.key)}
                     isHidden={hiddenKeys.has(group.key)}
                     usage={stepUsage.get(group.key) ?? []}
+                    mapping={mappingsByHash.get(group.key) ?? null}
+                    bomMaterials={bomMaterials}
+                    canMap={canMap}
+                    modelUploadId={modelUploadId}
+                    instructionId={id}
                     style={{
                       position: "absolute",
                       top: 0,
@@ -566,6 +613,11 @@ function BomRow({
   isSelected,
   isHidden,
   usage,
+  mapping,
+  bomMaterials,
+  canMap,
+  modelUploadId,
+  instructionId,
   style,
   onClick,
   onSelectStep
@@ -574,10 +626,21 @@ function BomRow({
   isSelected: boolean;
   isHidden: boolean;
   usage: { stepId: string; index: number; title: string }[];
+  mapping: AssemblyPartMapping | null;
+  bomMaterials: FlattenedBomMaterial[];
+  canMap: boolean;
+  modelUploadId: string | null;
+  instructionId: string;
   style: React.CSSProperties;
   onClick: (event: MouseEvent) => void;
   onSelectStep: (stepId: string) => void;
 }) {
+  const bomLine = mapping
+    ? bomMaterials.find((material) => material.itemId === mapping.itemId)
+    : undefined;
+  const quantityMismatch =
+    bomLine !== undefined && Math.round(bomLine.quantity) !== group.count;
+
   return (
     <div
       role="button"
@@ -597,9 +660,25 @@ function BomRow({
       }}
     >
       <PartColorSwatch color={group.color} />
-      <span className="min-w-0 flex-1 truncate" title={group.name}>
-        {group.name}
-      </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate" title={group.name}>
+          {group.name}
+        </span>
+        {mapping?.item && (
+          <span
+            className={cn(
+              "truncate text-xs",
+              quantityMismatch ? "text-yellow-600" : "text-muted-foreground"
+            )}
+            title={mapping.item.name ?? undefined}
+          >
+            {mapping.item.readableIdWithRevision}
+            {quantityMismatch &&
+              bomLine &&
+              ` · BOM qty ${Math.round(bomLine.quantity)} ≠ model ${group.count}`}
+          </span>
+        )}
+      </div>
       {isHidden && (
         <LuEyeOff
           className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
@@ -628,6 +707,11 @@ function BomRow({
           <PartDetails
             group={group}
             usage={usage}
+            mapping={mapping}
+            bomMaterials={bomMaterials}
+            canMap={canMap}
+            modelUploadId={modelUploadId}
+            instructionId={instructionId}
             onSelectStep={onSelectStep}
           />
         </PopoverContent>
@@ -639,17 +723,40 @@ function BomRow({
 function PartDetails({
   group,
   usage,
+  mapping,
+  bomMaterials,
+  canMap,
+  modelUploadId,
+  instructionId,
   onSelectStep
 }: {
   group: PartGroup;
   usage: { stepId: string; index: number; title: string }[];
+  mapping: AssemblyPartMapping | null;
+  bomMaterials: FlattenedBomMaterial[];
+  canMap: boolean;
+  modelUploadId: string | null;
+  instructionId: string;
   onSelectStep: (stepId: string) => void;
 }) {
+  const mapFetcher = useFetcher<{ success: boolean }>();
   const size = [
     group.bbox.max[0] - group.bbox.min[0],
     group.bbox.max[1] - group.bbox.min[1],
     group.bbox.max[2] - group.bbox.min[2]
   ];
+
+  const onMap = (itemId: string) => {
+    if (!modelUploadId) return;
+    const formData = new FormData();
+    formData.append("modelUploadId", modelUploadId);
+    formData.append("geometryHash", group.key);
+    formData.append("itemId", itemId);
+    mapFetcher.submit(formData, {
+      method: "post",
+      action: path.to.newAssemblyPartMapping(instructionId)
+    });
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -670,6 +777,57 @@ function PartDetails({
         <dt className="text-muted-foreground">Volume</dt>
         <dd className="tabular-nums">{formatVolume(group.volume)}</dd>
       </dl>
+      {bomMaterials.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs text-muted-foreground">Bill of materials</p>
+          {mapping?.item ? (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="min-w-0 flex-1 truncate">
+                {mapping.item.readableIdWithRevision} · {mapping.item.name}
+              </span>
+              {canMap && (
+                <IconButton
+                  aria-label="Remove BOM mapping"
+                  icon={<LuTrash />}
+                  variant="ghost"
+                  size="sm"
+                  isDisabled={mapFetcher.state !== "idle"}
+                  onClick={() => {
+                    mapFetcher.submit(new FormData(), {
+                      method: "post",
+                      action: path.to.deleteAssemblyPartMapping(
+                        instructionId,
+                        mapping.id
+                      )
+                    });
+                  }}
+                />
+              )}
+            </div>
+          ) : canMap ? (
+            <ul className="flex max-h-36 flex-col overflow-y-auto">
+              {bomMaterials.map((material) => (
+                <li key={`${material.itemId}-${material.depth}`}>
+                  <button
+                    type="button"
+                    className="w-full truncate rounded-sm px-1 py-0.5 text-left text-xs hover:bg-accent disabled:opacity-50"
+                    disabled={mapFetcher.state !== "idle"}
+                    title={material.name ?? undefined}
+                    onClick={() => onMap(material.itemId)}
+                  >
+                    <span className="text-muted-foreground tabular-nums mr-1">
+                      ×{Math.round(material.quantity)}
+                    </span>
+                    {material.readableIdWithRevision} · {material.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-muted-foreground">Not mapped</p>
+          )}
+        </div>
+      )}
       <div className="flex flex-col gap-1">
         <p className="text-xs text-muted-foreground">Used in steps</p>
         {usage.length === 0 ? (

@@ -489,6 +489,12 @@ export const path = {
       generatePath(`${x}/assembly/${id}/requirements/order`),
     newAssemblyGroup: (id: string) =>
       generatePath(`${x}/assembly/${id}/groups/new`),
+    newAssemblyPartMapping: (id: string) =>
+      generatePath(`${x}/assembly/${id}/part-mappings/new`),
+    deleteAssemblyPartMapping: (id: string, mappingId: string) =>
+      generatePath(`${x}/assembly/${id}/part-mappings/delete/${mappingId}`),
+    autoMatchAssemblyParts: (id: string) =>
+      generatePath(`${x}/assembly/${id}/part-mappings/auto`),
     deleteAssemblyGroup: (id: string, groupId: string) =>
       generatePath(`${x}/assembly/${id}/groups/delete/${groupId}`),
     newAssemblyStandardNote: `${x}/assembly/standard-notes/new`,

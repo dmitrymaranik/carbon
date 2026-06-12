@@ -39,8 +39,13 @@ import { Empty } from "~/components";
 import { ConfirmDelete } from "~/components/Modals";
 import { usePermissions } from "~/hooks";
 import { path } from "~/utils/path";
+import type { FlattenedBomMaterial } from "../../production.service";
 import { toViewerStep } from "../../production.service";
-import type { AssemblyGroup, AssemblyInstructionStepRow } from "../../types";
+import type {
+  AssemblyGroup,
+  AssemblyInstructionStepRow,
+  AssemblyPartMapping
+} from "../../types";
 import AssemblyBomTree from "./AssemblyBomTree";
 
 type AssemblyInstructionExplorerProps = {
@@ -51,6 +56,9 @@ type AssemblyInstructionExplorerProps = {
   graphIndex: AssemblyGraphIndex | null;
   /** A successful motion plan exists for the model */
   hasPlan: boolean;
+  modelUploadId: string | null;
+  partMappings: AssemblyPartMapping[];
+  bomMaterials: FlattenedBomMaterial[];
   onSelectStep: (stepId: string) => void;
   onHighlightParts: (nodeIds: string[]) => void;
   onHideParts: (nodeIds: string[]) => void;
@@ -63,6 +71,9 @@ export default function AssemblyInstructionExplorer({
   isDisabled,
   graphIndex,
   hasPlan,
+  modelUploadId,
+  partMappings,
+  bomMaterials,
   onSelectStep,
   onHighlightParts,
   onHideParts
@@ -334,6 +345,9 @@ export default function AssemblyInstructionExplorer({
             steps={steps}
             groups={groups}
             isDisabled={isDisabled}
+            modelUploadId={modelUploadId}
+            partMappings={partMappings}
+            bomMaterials={bomMaterials}
             onHighlightParts={onHighlightParts}
             onHideParts={onHideParts}
             onSelectStep={onSelectStep}

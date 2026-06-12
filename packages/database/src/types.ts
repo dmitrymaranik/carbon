@@ -2273,6 +2273,81 @@ export type Database = {
           },
         ]
       }
+      assemblyPartMapping: {
+        Row: {
+          companyId: string
+          confidence: string
+          createdAt: string
+          createdBy: string
+          geometryHash: string
+          id: string
+          itemId: string
+          modelUploadId: string
+          updatedAt: string | null
+          updatedBy: string | null
+        }
+        Insert: {
+          companyId: string
+          confidence?: string
+          createdAt?: string
+          createdBy: string
+          geometryHash: string
+          id?: string
+          itemId: string
+          modelUploadId: string
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Update: {
+          companyId?: string
+          confidence?: string
+          createdAt?: string
+          createdBy?: string
+          geometryHash?: string
+          id?: string
+          itemId?: string
+          modelUploadId?: string
+          updatedAt?: string | null
+          updatedBy?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assemblyPartMapping_companyId_fkey"
+            columns: ["companyId"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyPartMapping_createdBy_fkey"
+            columns: ["createdBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyPartMapping_itemId_fkey"
+            columns: ["itemId"]
+            isOneToOne: false
+            referencedRelation: "item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyPartMapping_modelUploadId_fkey"
+            columns: ["modelUploadId"]
+            isOneToOne: false
+            referencedRelation: "modelUpload"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assemblyPartMapping_updatedBy_fkey"
+            columns: ["updatedBy"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assemblyPlanJob: {
         Row: {
           companyId: string

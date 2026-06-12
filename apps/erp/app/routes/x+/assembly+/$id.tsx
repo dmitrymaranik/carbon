@@ -18,8 +18,10 @@ import {
   getAssemblyInstruction,
   getAssemblyInstructionStepRequirements,
   getAssemblyInstructionSteps,
+  getAssemblyPartMappings,
   getAssemblyPlanJson,
   getAssemblyStandardNotes,
+  getFlattenedBomMaterials,
   toViewerStep,
   upsertAssemblyInstruction
 } from "~/modules/production";
@@ -61,14 +63,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     );
   }
 
-  const [requirements, plan] = await Promise.all([
+  const [requirements, plan, partMappings, bomMaterials] = await Promise.all([
     getAssemblyInstructionStepRequirements(
       client,
       (steps.data ?? []).map((step) => step.id)
     ),
     instruction.data.modelUploadId
       ? getAssemblyPlanJson(client, instruction.data.modelUploadId)
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+    instruction.data.modelUploadId
+      ? getAssemblyPartMappings(client, instruction.data.modelUploadId)
+      : Promise.resolve({ data: [] }),
+    instruction.data.itemId
+      ? getFlattenedBomMaterials(client, instruction.data.itemId, companyId)
+      : Promise.resolve([])
   ]);
 
   return {
@@ -77,7 +85,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     requirements: requirements.data ?? [],
     standardNotes: standardNotes.data ?? [],
     groups: groups.data ?? [],
-    plan
+    plan,
+    partMappings: partMappings.data ?? [],
+    bomMaterials
   };
 }
 
@@ -126,8 +136,16 @@ export default function AssemblyInstructionRoute() {
   const { id } = useParams();
   if (!id) throw new Error("Could not find id");
 
-  const { instruction, steps, requirements, standardNotes, groups, plan } =
-    useLoaderData<typeof loader>();
+  const {
+    instruction,
+    steps,
+    requirements,
+    standardNotes,
+    groups,
+    plan,
+    partMappings,
+    bomMaterials
+  } = useLoaderData<typeof loader>();
   const permissions = usePermissions();
   const mode = useMode();
 
@@ -180,6 +198,9 @@ export default function AssemblyInstructionRoute() {
                   isDisabled={isDisabled}
                   graphIndex={graphIndex}
                   hasPlan={Boolean(plan)}
+                  modelUploadId={instruction.modelUploadId}
+                  partMappings={partMappings}
+                  bomMaterials={bomMaterials}
                   onSelectStep={onSelectStep}
                   onHighlightParts={setHighlightedNodeIds}
                   onHideParts={setHiddenNodeIds}

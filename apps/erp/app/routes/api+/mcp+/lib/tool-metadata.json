@@ -1,6 +1,6 @@
 {
-  "generated": "2026-06-11T14:16:30.976Z",
-  "totalTools": 1207,
+  "generated": "2026-06-12T02:08:48.825Z",
+  "totalTools": 1212,
   "modules": 15,
   "tools": [
     {
@@ -18136,6 +18136,149 @@
         },
         "required": [
           "modelUploadId"
+        ]
+      }
+    },
+    {
+      "name": "production_getAssemblyPartMappings",
+      "module": "production",
+      "classification": "READ",
+      "description": "get assembly part mappings",
+      "paramCount": 1,
+      "serviceParams": [
+        "client",
+        "modelUploadId"
+      ],
+      "injectAuth": [
+        "companyId"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "modelUploadId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "modelUploadId"
+        ]
+      }
+    },
+    {
+      "name": "production_upsertAssemblyPartMapping",
+      "module": "production",
+      "classification": "WRITE",
+      "description": "upsert assembly part mapping",
+      "paramCount": 4,
+      "serviceParams": [
+        "client",
+        "data"
+      ],
+      "injectAuth": [
+        "companyId",
+        "createdBy",
+        "updatedBy"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "modelUploadId": {
+            "type": "string"
+          },
+          "geometryHash": {
+            "type": "string"
+          },
+          "itemId": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "low"
+            ]
+          }
+        },
+        "required": [
+          "modelUploadId",
+          "geometryHash",
+          "itemId"
+        ]
+      }
+    },
+    {
+      "name": "production_deleteAssemblyPartMapping",
+      "module": "production",
+      "classification": "DESTRUCTIVE",
+      "description": "delete assembly part mapping",
+      "paramCount": 1,
+      "serviceParams": [
+        "client",
+        "id"
+      ],
+      "injectAuth": [
+        "companyId"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "production_getFlattenedBomMaterials",
+      "module": "production",
+      "classification": "READ",
+      "description": "get flattened bom materials",
+      "paramCount": 1,
+      "serviceParams": [
+        "client",
+        "itemId",
+        "companyId"
+      ],
+      "injectAuth": [
+        "companyId"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "itemId"
+        ]
+      }
+    },
+    {
+      "name": "production_autoMatchAssemblyParts",
+      "module": "production",
+      "classification": "WRITE",
+      "description": "auto match assembly parts",
+      "paramCount": 1,
+      "serviceParams": [
+        "client",
+        "args"
+      ],
+      "injectAuth": [
+        "companyId"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "assemblyInstructionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "assemblyInstructionId"
         ]
       }
     },

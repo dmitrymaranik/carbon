@@ -3983,6 +3983,307 @@ export async function getAssemblyPlanJson(
   }
 }
 
+// --- Model part ↔ engineering BOM mappings -------------------------------
+
+/** Mappings from distinct model parts (geometry hashes) to BOM items. */
+export async function getAssemblyPartMappings(
+  client: SupabaseClient<Database>,
+  modelUploadId: string
+) {
+  return client
+    .from("assemblyPartMapping")
+    .select("*, item(id, name, readableIdWithRevision)")
+    .eq("modelUploadId", modelUploadId);
+}
+
+export async function upsertAssemblyPartMapping(
+  client: SupabaseClient<Database>,
+  data: {
+    modelUploadId: string;
+    geometryHash: string;
+    itemId: string;
+    confidence?: "high" | "low";
+    companyId: string;
+    createdBy: string;
+  }
+) {
+  return client
+    .from("assemblyPartMapping")
+    .upsert(
+      {
+        modelUploadId: data.modelUploadId,
+        geometryHash: data.geometryHash,
+        itemId: data.itemId,
+        confidence: data.confidence ?? "high",
+        companyId: data.companyId,
+        createdBy: data.createdBy,
+        updatedBy: data.createdBy,
+        updatedAt: new Date().toISOString()
+      },
+      { onConflict: "modelUploadId,geometryHash" }
+    )
+    .select("id")
+    .single();
+}
+
+export async function deleteAssemblyPartMapping(
+  client: SupabaseClient<Database>,
+  id: string
+) {
+  return client.from("assemblyPartMapping").delete().eq("id", id);
+}
+
+export type FlattenedBomMaterial = {
+  itemId: string;
+  name: string | null;
+  readableIdWithRevision: string | null;
+  /** Total quantity per one parent assembly (multiplied through levels) */
+  quantity: number;
+  methodType: string;
+  depth: number;
+};
+
+/**
+ * The engineering bill of materials for a made item, flattened through its
+ * Make subassemblies (makeMethod → methodMaterial → materialMakeMethodId),
+ * with quantities multiplied per level. Uses the Active make method, or
+ * the first one when none is active.
+ */
+export async function getFlattenedBomMaterials(
+  client: SupabaseClient<Database>,
+  itemId: string,
+  companyId: string
+): Promise<FlattenedBomMaterial[]> {
+  const makeMethods = await client
+    .from("makeMethod")
+    .select("id, status")
+    .eq("itemId", itemId)
+    .eq("companyId", companyId);
+  if (makeMethods.error || !makeMethods.data?.length) return [];
+
+  const active =
+    makeMethods.data.find((method) => method.status === "Active") ??
+    makeMethods.data[0];
+  if (!active) return [];
+
+  const results: FlattenedBomMaterial[] = [];
+  const visited = new Set<string>();
+
+  const walk = async (
+    makeMethodId: string,
+    multiplier: number,
+    depth: number
+  ): Promise<void> => {
+    if (depth > 5 || visited.has(makeMethodId)) return;
+    visited.add(makeMethodId);
+
+    const materials = await client
+      .from("methodMaterial")
+      .select(
+        "id, itemId, quantity, methodType, materialMakeMethodId, item(id, name, readableIdWithRevision)"
+      )
+      .eq("makeMethodId", makeMethodId)
+      .order("order", { ascending: true });
+
+    for (const material of materials.data ?? []) {
+      if (!material.itemId) continue;
+      const quantity = (material.quantity ?? 1) * multiplier;
+      results.push({
+        itemId: material.itemId,
+        name: material.item?.name ?? null,
+        readableIdWithRevision: material.item?.readableIdWithRevision ?? null,
+        quantity,
+        methodType: material.methodType,
+        depth
+      });
+      if (material.materialMakeMethodId) {
+        await walk(material.materialMakeMethodId, quantity, depth + 1);
+      }
+    }
+  };
+
+  await walk(active.id, 1, 0);
+  return results;
+}
+
+const tokenize = (value: string): Set<string> =>
+  new Set(
+    value
+      .toLowerCase()
+      .split(/[^a-z0-9.]+/)
+      .filter((token) => token.length > 0)
+  );
+
+const nameSimilarity = (a: string, b: string): number => {
+  const tokensA = tokenize(a);
+  const tokensB = tokenize(b);
+  if (tokensA.size === 0 || tokensB.size === 0) return 0;
+  let shared = 0;
+  for (const token of tokensA) if (tokensB.has(token)) shared++;
+  return shared / (tokensA.size + tokensB.size - shared);
+};
+
+export type AutoMatchResult = {
+  mapped: number;
+  totalParts: number;
+  unmatchedBomItems: string[];
+};
+
+/**
+ * Suggests and persists part→BOM mappings for an instruction's model:
+ * strong name matches first (greedy, best score wins), then unique
+ * quantity matches (a part appearing N times matched to the only BOM line
+ * with quantity N) as low-confidence fallbacks. Existing mappings are kept.
+ */
+export async function autoMatchAssemblyParts(
+  client: SupabaseClient<Database>,
+  args: { assemblyInstructionId: string; companyId: string; userId: string }
+): Promise<AutoMatchResult | { error: string }> {
+  const instruction = await client
+    .from("assemblyInstruction")
+    .select("id, itemId, modelUploadId, modelUpload(graphPath)")
+    .eq("id", args.assemblyInstructionId)
+    .single();
+  if (instruction.error || !instruction.data.modelUploadId) {
+    return { error: "This instruction has no model" };
+  }
+  if (!instruction.data.itemId) {
+    return { error: "Link the instruction to an item first" };
+  }
+  const graphPath = instruction.data.modelUpload?.graphPath;
+  if (!graphPath) {
+    return { error: "The model has not been processed" };
+  }
+
+  const graphFile = await client.storage.from("private").download(graphPath);
+  if (graphFile.error || !graphFile.data) {
+    return { error: "Failed to load the model graph" };
+  }
+  let graph: AssemblyGraph;
+  try {
+    graph = JSON.parse(await graphFile.data.text()) as AssemblyGraph;
+  } catch {
+    return { error: "Failed to parse the model graph" };
+  }
+
+  // Distinct parts: hash → { name, count }
+  const partGroups = new Map<string, { name: string; count: number }>();
+  const visit = (node: AssemblyGraph["root"]) => {
+    if (!node.children.length) {
+      const key = node.geometryHash ?? `name:${node.name}`;
+      const group = partGroups.get(key);
+      if (group) group.count++;
+      else partGroups.set(key, { name: node.name, count: 1 });
+    }
+    for (const child of node.children) visit(child);
+  };
+  visit(graph.root);
+
+  const bom = await getFlattenedBomMaterials(
+    client,
+    instruction.data.itemId,
+    args.companyId
+  );
+  if (bom.length === 0) {
+    return { error: "The item has no bill of materials" };
+  }
+
+  const existing = await getAssemblyPartMappings(
+    client,
+    instruction.data.modelUploadId
+  );
+  const mappedHashes = new Set(
+    (existing.data ?? []).map((mapping) => mapping.geometryHash)
+  );
+  const usedItemIds = new Set(
+    (existing.data ?? []).map((mapping) => mapping.itemId)
+  );
+
+  type Suggestion = {
+    geometryHash: string;
+    itemId: string;
+    score: number;
+    confidence: "high" | "low";
+  };
+  const suggestions: Suggestion[] = [];
+
+  // Name-based candidates, all pairs above threshold, greedy by score
+  for (const [hash, group] of partGroups) {
+    if (mappedHashes.has(hash)) continue;
+    for (const material of bom) {
+      const score = nameSimilarity(group.name, material.name ?? "");
+      if (score >= 0.45) {
+        suggestions.push({
+          geometryHash: hash,
+          itemId: material.itemId,
+          score,
+          confidence: score >= 0.7 ? "high" : "low"
+        });
+      }
+    }
+  }
+  suggestions.sort((a, b) => b.score - a.score);
+
+  const matchedHashes = new Set<string>(mappedHashes);
+  const matchedItems = new Set<string>(usedItemIds);
+  const accepted: Suggestion[] = [];
+  for (const suggestion of suggestions) {
+    if (matchedHashes.has(suggestion.geometryHash)) continue;
+    if (matchedItems.has(suggestion.itemId)) continue;
+    matchedHashes.add(suggestion.geometryHash);
+    matchedItems.add(suggestion.itemId);
+    accepted.push(suggestion);
+  }
+
+  // Quantity fallback: a still-unmatched part whose instance count equals
+  // exactly one still-unmatched BOM line's quantity
+  for (const [hash, group] of partGroups) {
+    if (matchedHashes.has(hash)) continue;
+    const candidates = bom.filter(
+      (material) =>
+        !matchedItems.has(material.itemId) &&
+        Math.round(material.quantity) === group.count
+    );
+    const sameCountParts = [...partGroups.entries()].filter(
+      ([otherHash, other]) =>
+        !matchedHashes.has(otherHash) && other.count === group.count
+    );
+    const candidate = candidates[0];
+    if (candidates.length === 1 && sameCountParts.length === 1 && candidate) {
+      matchedHashes.add(hash);
+      matchedItems.add(candidate.itemId);
+      accepted.push({
+        geometryHash: hash,
+        itemId: candidate.itemId,
+        score: 0,
+        confidence: "low"
+      });
+    }
+  }
+
+  for (const suggestion of accepted) {
+    await upsertAssemblyPartMapping(client, {
+      modelUploadId: instruction.data.modelUploadId,
+      geometryHash: suggestion.geometryHash,
+      itemId: suggestion.itemId,
+      confidence: suggestion.confidence,
+      companyId: args.companyId,
+      createdBy: args.userId
+    });
+  }
+
+  return {
+    mapped: matchedHashes.size,
+    totalParts: partGroups.size,
+    unmatchedBomItems: bom
+      .filter((material) => !matchedItems.has(material.itemId))
+      .map(
+        (material) =>
+          material.readableIdWithRevision ?? material.name ?? material.itemId
+      )
+  };
+}
+
 type GenerateStepsResult =
   | { ok: true; created: number }
   | {
