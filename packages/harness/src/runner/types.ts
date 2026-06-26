@@ -121,6 +121,6 @@ export const DEFAULT_CONFIG: Omit<RunnerConfig, "cwd" | "ledgerPath"> = {
   doerMaxBudgetUsd: 5,
   judgeMaxTurns: 20,
   judgeMaxBudgetUsd: 2,
-  behaviorMaxTurns: 40,
-  behaviorMaxBudgetUsd: 3
+  behaviorMaxTurns: 80,
+  behaviorMaxBudgetUsd: 5
 };
